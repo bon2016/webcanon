@@ -55,12 +55,14 @@ RETRIEVE_TOOL: dict[str, Any] = {
 def as_openai_tool() -> dict[str, Any]:
     """Return the tool in OpenAI ``tools=[...]`` (function) shape."""
 
+    import copy
+
     return {
         "type": "function",
         "function": {
             "name": RETRIEVE_TOOL_NAME,
             "description": RETRIEVE_TOOL_DESCRIPTION,
-            "parameters": RETRIEVE_INPUT_SCHEMA,
+            "parameters": copy.deepcopy(RETRIEVE_INPUT_SCHEMA),
         },
     }
 
