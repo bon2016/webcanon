@@ -1,8 +1,15 @@
 # Architecture
 
-WebCanon is a **retrieval pipeline + policy engine + evidence log**. It does not
-hand search results or raw URLs to an LLM. It builds a *verified retrieval plan*,
+WebCanon is a **retrieval pipeline + policy engine + evidence log**. Given a URL,
+it builds a *verified retrieval plan* (robots → llms.txt → fetch → extract),
 executes it, and returns extracted, provenance-bearing content.
+
+> **Scope:** WebCanon's purpose is *correct, policy-aware scraping of a given
+> URL*. **Web search engines are out of scope** — finding candidate URLs is a
+> separate concern. The pipeline diagram below shows the original vision
+> (including a search adapter) for context; the supported entry point is
+> `retrieve_url`. Scraping and AI reasoning are **injectable** (see
+> [customization.md](customization.md)).
 
 ## Pipeline
 
@@ -78,6 +85,6 @@ improve.
 | --- | --- |
 | **v0.1** (this release) | URL retrieval quality baseline: normalize, robots, llms, sitemap, SSRF fetch, basic extraction, provenance, CLI |
 | v0.2 | Full `llms.txt` resolution polish, manifest caching with TTL, malicious-`llms.txt` fixtures |
-| v0.3 | Search adapters (Brave, Exa, Tavily), dedupe, search→fetch→extract, source diversity scoring |
+| v0.3 | Framework adapters (LangChain/LlamaIndex/MCP), async path. *(Search adapters are out of scope for this module.)* |
 | v0.4 | Readability/Trafilatura extractors, Playwright renderer, table/code preservation, LLM-assisted repair, quality scoring |
 | v1.0 | Conformance test suite, stable API, security review, Docker image, docs site, RAG/MCP integrations |
