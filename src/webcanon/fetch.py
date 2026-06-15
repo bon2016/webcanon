@@ -30,12 +30,15 @@ def fetch(
     config: FetchConfig,
     user_agent: UserAgentConfig,
     client: Optional[httpx.Client] = None,
+    headers: Optional[dict[str, str]] = None,
 ) -> FetchResponse:
     """Fetch ``url`` following redirects manually.
 
     Each redirect target is re-checked by the SSRF guard. Bodies larger than
     ``config.max_body_bytes`` are truncated. Disallowed content types raise
-    :class:`FetchError`.
+    :class:`FetchError`. ``headers`` are extra per-request headers (e.g. an
+    ``Accept`` header requested by an AI resolver); ``User-Agent`` is always
+    set from ``user_agent`` unless explicitly overridden here.
     """
 
     owns_client = client is None
@@ -44,12 +47,15 @@ def fetch(
         timeout=config.timeout_seconds,
         headers={"User-Agent": user_agent.header},
     )
+    request_headers = {"User-Agent": user_agent.header}
+    if headers:
+        request_headers.update(headers)
     redirects: list[str] = []
     current = url
     try:
         for _ in range(config.max_redirects + 1):
             assert_safe_url(current, block_private=config.block_private_addresses)
-            resp = client.get(current)
+            resp = client.get(current, headers=request_headers)
             if resp.is_redirect and resp.has_redirect_location:
                 location = str(resp.next_request.url) if resp.next_request else None
                 if not location:
