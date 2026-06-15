@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, Optional
+
+if TYPE_CHECKING:
+    from .hooks import AiResolver, Extractor, Fetcher
 
 RobotsMode = Literal["respect", "report_only", "ignore"]
 OnUnavailable = Literal["allow_with_warning", "deny"]
@@ -20,7 +23,7 @@ class UserAgentConfig:
     ``User-agent`` groups in ``robots.txt``.
     """
 
-    product: str = "WebCanonBot"
+    product: str = "WebCanon"
     version: str = "0.1.0"
     contact: str | None = None
 
@@ -91,3 +94,10 @@ class RetrievalConfig:
     llms: LlmsConfig = field(default_factory=LlmsConfig)
     extraction: ExtractionConfig = field(default_factory=ExtractionConfig)
     fetch: FetchConfig = field(default_factory=FetchConfig)
+
+    # -- customization hooks (None => built-in default) -----------------
+    # Swap the scraping transport, the HTML->Markdown converter, and the AI
+    # that reasons over llms.txt + URL. See webcanon.hooks.
+    fetcher: "Optional[Fetcher]" = None
+    extractor: "Optional[Extractor]" = None
+    ai_resolver: "Optional[AiResolver]" = None
