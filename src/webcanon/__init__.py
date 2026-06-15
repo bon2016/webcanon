@@ -1,0 +1,54 @@
+"""WebCanon: policy-aware web retrieval for AI.
+
+WebCanon turns URLs into trustworthy, policy-checked, citation-ready context
+for LLMs. It evaluates ``robots.txt`` (RFC 9309), resolves LLM-friendly
+alternatives via ``llms.txt``, discovers URLs via ``sitemap.xml``, fetches
+content behind an SSRF guard, converts HTML to Markdown, and returns full
+provenance for every retrieved document.
+
+The retrieval *constitution* (see ``docs/``):
+
+1. Search results are leads, not sources.
+2. robots.txt is evaluated before fetch.
+3. llms.txt can guide retrieval, not override policy.
+4. Every transformed document must retain provenance.
+5. Web content is untrusted input.
+6. Markdown is an interface, not the source of truth.
+7. Extraction quality must be measurable.
+"""
+
+from .client import WebCanon
+from .config import (
+    ExtractionConfig,
+    LlmsConfig,
+    RetrievalConfig,
+    RobotsConfig,
+    UserAgentConfig,
+)
+from .errors import (
+    PolicyError,
+    SsrfError,
+    WebCanonError,
+)
+from .robots import RobotsPolicy, RobotsVerdict, evaluate_robots, parse_robots
+from .types import RetrievalResult
+
+__version__ = "0.1.0"
+
+__all__ = [
+    "WebCanon",
+    "RetrievalConfig",
+    "RobotsConfig",
+    "LlmsConfig",
+    "ExtractionConfig",
+    "UserAgentConfig",
+    "RetrievalResult",
+    "RobotsPolicy",
+    "RobotsVerdict",
+    "parse_robots",
+    "evaluate_robots",
+    "WebCanonError",
+    "PolicyError",
+    "SsrfError",
+    "__version__",
+]
