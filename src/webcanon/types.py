@@ -115,3 +115,41 @@ class RetrievalResult:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    def to_document(self) -> dict[str, Any]:
+        """Return a framework-neutral document shape.
+
+        The keys are chosen so adapters for LangChain, LlamaIndex, Haystack,
+        etc. can map them with a one-liner. ``content`` is duplicated as both
+        ``page_content`` (LangChain) and ``text`` (LlamaIndex) to avoid glue.
+        See ``docs/ai-framework-affinity.md`` for the mapping cheat-sheet.
+        """
+
+        content = self.document.markdown
+        metadata: dict[str, Any] = {
+            "source": self.selected_source.final_url,
+            "requested_url": self.selected_source.requested_url,
+            "selected_by": self.selected_source.selected_by,
+            "title": self.document.title,
+            "content_type": self.fetch.content_type,
+            "source_hash": self.provenance.source_hash,
+            "markdown_hash": self.provenance.markdown_hash,
+            "quality_score": self.extraction.quality_score,
+        }
+        if self.policy.robots is not None:
+            metadata["robots_verdict"] = self.policy.robots.verdict
+            metadata["robots_recommendation"] = self.policy.robots.recommendation
+        if self.extraction.warnings:
+            metadata["warnings"] = list(self.extraction.warnings)
+        return {"content": content, "page_content": content, "text": content,
+                "metadata": metadata}
+
+    def to_markdown_with_citation(self) -> str:
+        """Render the document as a string with a trailing source citation.
+
+        Useful for tools/agents that only accept a text return value.
+        """
+
+        url = self.selected_source.final_url
+        title = self.document.title or url
+        return f"{self.document.markdown}\n\n---\nSource: [{title}]({url})"

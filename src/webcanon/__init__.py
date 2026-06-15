@@ -31,6 +31,7 @@ from .errors import (
     WebCanonError,
 )
 from .robots import RobotsPolicy, RobotsVerdict, evaluate_robots, parse_robots
+from .schema import RETRIEVE_TOOL, as_anthropic_tool, as_openai_tool
 from .types import RetrievalResult
 
 __version__ = "0.1.0"
@@ -47,6 +48,9 @@ __all__ = [
     "RobotsVerdict",
     "parse_robots",
     "evaluate_robots",
+    "RETRIEVE_TOOL",
+    "as_openai_tool",
+    "as_anthropic_tool",
     "WebCanonError",
     "PolicyError",
     "SsrfError",
