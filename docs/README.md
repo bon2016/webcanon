@@ -8,6 +8,7 @@
 | [llms-resolution.md](llms-resolution.md) | `llms.txt` parsing & URL resolution |
 | [extraction-quality.md](extraction-quality.md) | HTML→Markdown extraction & quality scoring |
 | [security.md](security.md) | SSRF guard, prompt-injection firewall, provenance |
+| [ai-framework-affinity.md](ai-framework-affinity.md) | Fit with LangChain/LlamaIndex/MCP and the neutral adapter surface |
 | [branching.md](branching.md) | Branch model, Conventional Commits, versioning |
 | [publishing.md](publishing.md) | Step-by-step PyPI release procedure |
 | [00_memo.md](00_memo.md) | Original design memo (source of truth for vision) |
