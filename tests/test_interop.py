@@ -60,7 +60,8 @@ def test_openai_tool_shape():
     assert tool["function"]["name"] == "webcanon_retrieve"
     assert "url" in tool["function"]["parameters"]["properties"]
     assert tool["function"]["parameters"]["required"] == ["url"]
-
+    # Returned copy, not shared module-level schema dicts.
+    assert tool["function"]["parameters"] is not RETRIEVE_TOOL["input_schema"]
 
 def test_anthropic_tool_shape():
     tool = as_anthropic_tool()
