@@ -67,5 +67,6 @@ def test_anthropic_tool_shape():
     tool = as_anthropic_tool()
     assert tool["name"] == "webcanon_retrieve"
     assert tool["input_schema"]["properties"]["ai_reasoning"]["type"] == "boolean"
-    # Returned copy, not the shared module-level dict.
+    # Returned copy, not the shared module-level dicts.
     assert tool is not RETRIEVE_TOOL
+    assert tool["input_schema"] is not RETRIEVE_TOOL["input_schema"]
