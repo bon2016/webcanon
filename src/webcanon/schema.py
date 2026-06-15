@@ -70,4 +70,6 @@ def as_openai_tool() -> dict[str, Any]:
 def as_anthropic_tool() -> dict[str, Any]:
     """Return the tool in Anthropic ``tools=[...]`` shape."""
 
-    return dict(RETRIEVE_TOOL)
+    import copy
+
+    return copy.deepcopy(RETRIEVE_TOOL)
