@@ -151,5 +151,6 @@ class RetrievalResult:
         """
 
         url = self.selected_source.final_url
-        title = self.document.title or url
-        return f"{self.document.markdown}\n\n---\nSource: [{title}]({url})"
+        raw_title = self.document.title or url
+        title = raw_title.replace("\\", "\\\\").replace("]", "\\]").replace("\r", " ").replace("\n", " ")
+        return f"{self.document.markdown}\n\n---\nSource: [{title}](<{url}>)"
