@@ -1,0 +1,8 @@
+# <type>(<scope>): <subject>   (≤72 chars, imperative mood)
+#
+# <body: what & why, wrap at 72>
+#
+# <footer: BREAKING CHANGE:, Refs #123>
+#
+# Types: feat fix docs test refactor perf build ci chore
+# Scopes: robots llms sitemap fetch extract ssrf cli client urls pkg docs
