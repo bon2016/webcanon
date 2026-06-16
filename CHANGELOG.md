@@ -18,11 +18,14 @@ breaking changes).
   (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` or
   `GOOGLE_API_KEY`) and returns a resolver or `None`. Optional extras:
   `pip install "webcanon[ai]"` / `"[openai]"` / `"[gemini]"`.
-- **CLI `--ai` now uses the configured AI provider** when
-  `WEBCANON_AI_PROVIDER` is set, falling back to the built-in rule engine
-  otherwise.
+- **Provider/model selection by env var or CLI flag.** New CLI flags
+  `--ai-provider {anthropic,openai,gemini}` (implies `--ai`) and `--ai-model`
+  take precedence over `WEBCANON_AI_PROVIDER` / `WEBCANON_AI_MODEL`. New public
+  helper `build_ai_resolver(provider, model)` and `SUPPORTED_PROVIDERS`.
+- **CLI `--ai` uses the configured AI provider** (flags, then env), falling back
+  to the built-in rule engine otherwise.
 - **Much richer CLI help**: descriptions, per-option explanations, an examples
-  section, an AI/env-var reference, and notes (scope, SSRF, User-Agent).
+  section, an AI provider/flag/env reference, and notes (scope, SSRF, User-Agent).
 
 ### Security
 - The AI's chosen URL is re-evaluated against `robots.txt` and the SSRF guard;

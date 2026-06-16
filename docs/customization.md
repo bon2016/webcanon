@@ -74,15 +74,25 @@ from the environment so the CLI and the library share a single switch:
 | OpenAI | `openai` | `pip install "webcanon[openai]"` | `gpt-5` | `OpenAiAiResolver` |
 | Google Gemini | `gemini` | `pip install "webcanon[gemini]"` | `gemini-2.5-pro` | `GeminiAiResolver` |
 
-CLI — `--ai` uses the configured provider automatically (or the rule engine if
-none is set):
+CLI — pick the provider/model via env vars or flags (flags win; `--ai-provider`
+implies `--ai`):
 
 ```bash
+# Flags
+export OPENAI_API_KEY=sk-...
+webcanon fetch https://example.com/docs/api --ai-provider openai --ai-model gpt-4o
+
+# Or env vars
 export WEBCANON_AI_PROVIDER=openai          # or anthropic / gemini
 export OPENAI_API_KEY=sk-...
 # optional: export WEBCANON_AI_MODEL=gpt-4o
 webcanon fetch https://example.com/docs/api --ai
 ```
+
+| | Environment variable | CLI flag |
+| --- | --- | --- |
+| Provider | `WEBCANON_AI_PROVIDER` | `--ai-provider {anthropic,openai,gemini}` |
+| Model | `WEBCANON_AI_MODEL` | `--ai-model MODEL` |
 
 Library — `ai_resolver_from_env()` returns the configured resolver or `None`:
 

@@ -126,14 +126,24 @@ WebCanon は3つのプロバイダ向けの組み込み AI リゾルバを同梱
 | OpenAI | `openai` | `OPENAI_API_KEY` | `pip install "webcanon[openai]"` | `gpt-5` | <https://platform.openai.com/api-keys> |
 | Google Gemini | `gemini` | `GEMINI_API_KEY`（または `GOOGLE_API_KEY`） | `pip install "webcanon[gemini]"` | `gemini-2.5-pro` | <https://aistudio.google.com/apikey> |
 
-共通設定:
+プロバイダとモデルは **環境変数** でも **コマンドライン引数** でも指定できます
+（引数が優先）:
 
-- `WEBCANON_AI_PROVIDER` — `anthropic` \| `openai` \| `gemini` で有効化。未設定 /
-  `none` で無効（組み込みルールエンジンにフォールバック）。
-- `WEBCANON_AI_MODEL` — モデル ID を上書き（未指定なら上表の既定値）。
+| | 環境変数 | コマンドライン引数 |
+| --- | --- | --- |
+| プロバイダ | `WEBCANON_AI_PROVIDER` | `--ai-provider {anthropic,openai,gemini}` |
+| モデル | `WEBCANON_AI_MODEL` | `--ai-model MODEL` |
+
+- `--ai-provider` は `--ai` を含意します（両方指定する必要はありません）。
+- 未設定 / `none` で無効（組み込みルールエンジンにフォールバック）。
+- API キーは常に上表の環境変数から読み込まれます。
 
 ```bash
-# OpenAI
+# コマンドライン引数（プロバイダ・モデルを引数で指定）
+export OPENAI_API_KEY=sk-...
+webcanon fetch https://example.com/docs/api --ai-provider openai --ai-model gpt-4o
+
+# 環境変数
 export WEBCANON_AI_PROVIDER=openai
 export OPENAI_API_KEY=sk-...
 # 任意: export WEBCANON_AI_MODEL=gpt-4o

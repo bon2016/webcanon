@@ -133,15 +133,24 @@ the same switch:
 | OpenAI | `openai` | `OPENAI_API_KEY` | `pip install "webcanon[openai]"` | `gpt-5` | <https://platform.openai.com/api-keys> |
 | Google Gemini | `gemini` | `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) | `pip install "webcanon[gemini]"` | `gemini-2.5-pro` | <https://aistudio.google.com/apikey> |
 
-Common settings:
+Select the provider and model by **environment variable** or **CLI flag** (the
+flags take precedence):
 
-- `WEBCANON_AI_PROVIDER` — `anthropic` \| `openai` \| `gemini` to enable; unset
-  or `none` to disable (falls back to the built-in rule engine).
-- `WEBCANON_AI_MODEL` — override the model id (defaults to the per-provider model
-  above).
+| | Environment variable | CLI flag |
+| --- | --- | --- |
+| Provider | `WEBCANON_AI_PROVIDER` | `--ai-provider {anthropic,openai,gemini}` |
+| Model | `WEBCANON_AI_MODEL` | `--ai-model MODEL` |
+
+- `--ai-provider` implies `--ai` (you don't need both).
+- Unset / `none` provider disables AI (falls back to the built-in rule engine).
+- The API key always comes from the environment variable in the table above.
 
 ```bash
-# OpenAI
+# CLI flags (provider + model on the command line)
+export OPENAI_API_KEY=sk-...
+webcanon fetch https://example.com/docs/api --ai-provider openai --ai-model gpt-4o
+
+# Environment variables
 export WEBCANON_AI_PROVIDER=openai
 export OPENAI_API_KEY=sk-...
 # optional: export WEBCANON_AI_MODEL=gpt-4o
