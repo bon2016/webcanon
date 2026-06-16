@@ -47,6 +47,13 @@ Markdown へ変換し、取得した全ドキュメントに対して**完全な
 pip install webcanon
 ```
 
+JavaScript レンダリングが必要なページ向け（ヘッドレスブラウザ・任意）:
+
+```bash
+pip install "webcanon[headless]"
+python -m playwright install chromium
+```
+
 ソースから:
 
 ```bash

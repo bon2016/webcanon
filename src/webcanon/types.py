@@ -84,6 +84,10 @@ class Document:
     text: str
     title: Optional[str] = None
     links: list[str] = field(default_factory=list)
+    # The raw fetched source (HTML, or whatever the origin returned). Kept so
+    # callers can re-extract, audit, or render the original. May be ``None`` if
+    # the body was unavailable.
+    html: Optional[str] = None
 
 
 @dataclass

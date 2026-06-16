@@ -53,9 +53,13 @@ class Extractor(Protocol):
     def extract(self, response) -> ExtractedDocument: ...
 ```
 
-Planned implementations: Readability, Trafilatura, a Playwright headless
-renderer for JS-heavy pages, and an optional LLM-assisted repair pass for DOMs
-that defeat rule-based extraction.
+Planned extractor implementations: Readability, Trafilatura, and an optional
+LLM-assisted repair pass for DOMs that defeat rule-based extraction.
+
+> **Available now:** a Playwright headless **fetcher** for JS-heavy pages —
+> `webcanon.headless.PlaywrightFetcher` (optional `webcanon[headless]` extra).
+> It renders the page in a real browser and feeds the post-JavaScript HTML into
+> whichever extractor is configured. See [customization.md](customization.md).
 
 ## Conformance fixtures (planned)
 

@@ -107,6 +107,8 @@ class WebCanon:
     def _do_fetch(
         self, url: str, *, headers: Optional[dict[str, str]] = None
     ) -> FetchResponse:
+        """Fetch the main document via the configured (possibly custom) fetcher."""
+
         return self._fetcher(
             url,
             config=self.config.fetch,
@@ -116,8 +118,19 @@ class WebCanon:
 
     # -- manifest fetching ----------------------------------------------
     def _fetch_text(self, url: str) -> Optional[FetchResponse]:
+        """Fetch a well-known manifest (robots.txt / llms.txt).
+
+        Manifests are plain text and never need JavaScript, so they always use
+        the lightweight built-in HTTP fetcher — even when a heavyweight custom
+        fetcher (e.g. a headless browser) is configured for the main document.
+        """
+
         try:
-            return self._do_fetch(url)
+            return self._default_fetcher(
+                url,
+                config=self.config.fetch,
+                user_agent=self.config.user_agent,
+            )
         except WebCanonError:
             return None
 
@@ -405,6 +418,7 @@ class WebCanon:
                 text=extracted.text,
                 title=extracted.title,
                 links=extracted.links,
+                html=response.body,
             ),
             provenance=Provenance(
                 source_hash=sha256_hex(response.body),
