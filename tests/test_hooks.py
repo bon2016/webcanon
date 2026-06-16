@@ -118,18 +118,27 @@ def test_ai_resolver_receives_llms_and_reroutes_with_headers():
 
 
 def test_ai_hint_cannot_override_robots_disallow():
+    fetched = []
+
     def my_ai(ctx):
-        return AiHint(url="https://example.com/blocked/doc.md", reason="ai tried")
+        # Points at a robots-disallowed URL, plus a header that must be dropped.
+        return AiHint(
+            url="https://example.com/blocked/doc.md",
+            headers={"Accept": "text/markdown"},
+            reason="ai tried",
+        )
 
     def routes(req):
         path = req.url.path
+        fetched.append(path)
         if path == "/robots.txt":
             return httpx.Response(200, text="User-agent: *\nDisallow: /blocked")
         if path == "/llms.txt":
             return httpx.Response(404)
-        if path == "/docs/api":
-            return httpx.Response(200, headers={"content-type": "text/html"}, text="<p>ok</p>")
-        return httpx.Response(404)
+        if path == "/blocked/doc.md":
+            return httpx.Response(200, text="should never be fetched")
+        # Normal resolution continues to the requested URL.
+        return httpx.Response(200, headers={"content-type": "text/html"}, text="<p>ok</p>")
 
     client = WebCanon(
         RetrievalConfig(
@@ -138,10 +147,134 @@ def test_ai_hint_cannot_override_robots_disallow():
         ),
         client=_mock_http(routes),
     )
-    # robots wins: falls back to the original URL, not the AI's blocked target.
     result = client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
-    assert result.selected_source.final_url.endswith("/docs/api")
+    # robots wins: the disallowed target is never fetched and the whole hint
+    # (including its headers) is dropped.
+    assert "/blocked/doc.md" not in fetched
+    assert not result.selected_source.final_url.endswith("/blocked/doc.md")
+    assert result.policy.llms.applied_headers == {}
     assert "ok" in result.document.text
+
+
+def test_cross_origin_ai_hint_rechecks_target_robots():
+    # The AI reroutes to ANOTHER origin whose robots.txt disallows the path.
+    # WebCanon must load that origin's robots, not reuse the requested origin's.
+    fetched = []
+
+    def my_ai(ctx):
+        return AiHint(url="https://other.test/secret", reason="cross-origin")
+
+    def routes(req):
+        host = req.url.host
+        path = req.url.path
+        fetched.append(f"{host}{path}")
+        if path == "/robots.txt":
+            if host == "other.test":
+                return httpx.Response(200, text="User-agent: *\nDisallow: /secret")
+            return httpx.Response(200, text="User-agent: *\nDisallow:")
+        if path == "/llms.txt":
+            return httpx.Response(404)
+        return httpx.Response(200, headers={"content-type": "text/html"}, text="<p>ok</p>")
+
+    client = WebCanon(
+        RetrievalConfig(ai_resolver=my_ai, fetch=FetchConfig(block_private_addresses=False)),
+        client=_mock_http(routes),
+    )
+    result = client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
+    # other.test's robots.txt was consulted, and the disallowed target avoided.
+    assert "other.test/robots.txt" in fetched
+    assert "other.test/secret" not in fetched
+    assert not result.selected_source.final_url.startswith("https://other.test/secret")
+
+
+def test_cross_origin_allowed_ai_hint_is_followed():
+    def my_ai(ctx):
+        return AiHint(url="https://other.test/docs.md", reason="cross-origin ok")
+
+    def routes(req):
+        host, path = req.url.host, req.url.path
+        if path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow:")
+        if path == "/llms.txt":
+            return httpx.Response(404)
+        if host == "other.test" and path == "/docs.md":
+            return httpx.Response(200, headers={"content-type": "text/markdown"}, text="# Other")
+        return httpx.Response(200, headers={"content-type": "text/html"}, text="<p>x</p>")
+
+    client = WebCanon(
+        RetrievalConfig(ai_resolver=my_ai, fetch=FetchConfig(block_private_addresses=False)),
+        client=_mock_http(routes),
+    )
+    result = client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
+    assert result.selected_source.final_url == "https://other.test/docs.md"
+    assert "# Other" in result.document.markdown
+
+
+def test_unsafe_injected_headers_are_dropped():
+    seen_headers = {}
+
+    def my_ai(ctx):
+        return AiHint(
+            url=None,
+            headers={"Accept": "text/markdown", "Authorization": "Bearer secret",
+                     "Cookie": "session=abc"},
+            reason="header test",
+        )
+
+    def routes(req):
+        if req.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow:")
+        if req.url.path == "/llms.txt":
+            return httpx.Response(404)
+        seen_headers["authorization"] = req.headers.get("Authorization")
+        seen_headers["cookie"] = req.headers.get("Cookie")
+        seen_headers["accept"] = req.headers.get("Accept")
+        return httpx.Response(200, headers={"content-type": "text/html"}, text="<p>x</p>")
+
+    client = WebCanon(
+        RetrievalConfig(ai_resolver=my_ai, fetch=FetchConfig(block_private_addresses=False)),
+        client=_mock_http(routes),
+    )
+    result = client.retrieve_url("https://example.com/page", ai_reasoning=True)
+    # Only the safe Accept header survives; credential-like headers are dropped.
+    assert seen_headers["accept"] == "text/markdown"
+    assert seen_headers["authorization"] is None
+    assert seen_headers["cookie"] is None
+    assert result.policy.llms.applied_headers == {"Accept": "text/markdown"}
+
+
+def test_custom_extractor_name_is_reported_in_provenance():
+    from webcanon.extract import ExtractedDocument
+
+    def my_extractor(body, *, content_type):
+        return ExtractedDocument(title=None, markdown="x", text="x", quality_score=0.5)
+
+    def routes(req):
+        if req.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow:")
+        return httpx.Response(200, headers={"content-type": "text/html"}, text="<p>x</p>")
+
+    client = WebCanon(
+        RetrievalConfig(extractor=my_extractor, fetch=FetchConfig(block_private_addresses=False)),
+        client=_mock_http(routes),
+    )
+    result = client.retrieve_url("https://example.com/page")
+    assert result.extraction.extractor.endswith("my_extractor")
+    assert result.extraction.extractor != "webcanon.basic_html"
+
+
+def test_default_extractor_name_unchanged():
+    def routes(req):
+        if req.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow:")
+        return httpx.Response(200, headers={"content-type": "text/html"}, text="<p>x</p>")
+
+    client = WebCanon(
+        RetrievalConfig(fetch=FetchConfig(block_private_addresses=False)),
+        client=_mock_http(routes),
+    )
+    result = client.retrieve_url("https://example.com/page")
+    assert result.extraction.extractor == "webcanon.basic_html"
 
 
 def test_ai_resolver_not_called_without_ai_reasoning():
