@@ -106,15 +106,28 @@ def _context_to_prompt(ctx: AiContext) -> str:
     )
 
 
+def _close_quietly(client: Any) -> None:
+    """Best-effort close of an SDK client's HTTP connection pool."""
+
+    close = getattr(client, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:
+            pass
+
+
 def _hint_from_args(data: dict[str, Any], model: str, provider: str) -> AiHint:
     """Build a sanitized :class:`AiHint` from a model's parsed tool arguments."""
 
     url = data.get("url") or None
-    raw_headers = data.get("headers") or {}
+    raw_headers = data.get("headers")
+    if not isinstance(raw_headers, dict):
+        raw_headers = {}
     headers = {
         k: v
         for k, v in raw_headers.items()
-        if isinstance(v, str) and k.lower() in SAFE_INJECTABLE_HEADERS
+        if isinstance(k, str) and isinstance(v, str) and k.lower() in SAFE_INJECTABLE_HEADERS
     }
     return AiHint(
         url=url if isinstance(url, str) else None,
@@ -139,17 +152,21 @@ class AnthropicAiResolver:
         except ImportError:
             return None
 
-        client = (
-            anthropic.Anthropic(api_key=self.api_key)
-            if self.api_key
-            else anthropic.Anthropic()
-        )
         tool = {
             "name": _TOOL_NAME,
             "description": "Choose the URL to fetch and any safe request headers.",
             "input_schema": _PARAMETERS,
         }
+        # Client construction and the API call both decline (-> rule engine)
+        # rather than break retrieval on any error. The client is closed to
+        # release its HTTP connection pool (matters for batch/daemon callers).
+        client = None
         try:
+            client = (
+                anthropic.Anthropic(api_key=self.api_key)
+                if self.api_key
+                else anthropic.Anthropic()
+            )
             response = client.messages.create(
                 model=self.model,
                 max_tokens=self.max_tokens,
@@ -160,6 +177,8 @@ class AnthropicAiResolver:
             )
         except Exception:
             return None
+        finally:
+            _close_quietly(client)
 
         for block in response.content:
             if getattr(block, "type", None) == "tool_use":
@@ -195,7 +214,6 @@ class OpenAiAiResolver:
             kwargs["api_key"] = self.api_key
         if self.base_url:
             kwargs["base_url"] = self.base_url
-        client = OpenAI(**kwargs)
 
         tools = [
             {
@@ -209,7 +227,9 @@ class OpenAiAiResolver:
                 },
             }
         ]
+        client = None
         try:
+            client = OpenAI(**kwargs)
             response = client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -221,6 +241,8 @@ class OpenAiAiResolver:
             )
         except Exception:
             return None
+        finally:
+            _close_quietly(client)
 
         try:
             tool_calls = response.choices[0].message.tool_calls or []
@@ -258,26 +280,23 @@ class GeminiAiResolver:
         api_key = self.api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get(
             "GOOGLE_API_KEY"
         )
+        client = None
         try:
             client = genai.Client(api_key=api_key) if api_key else genai.Client()
-        except Exception:
-            return None
-
-        function = genai_types.FunctionDeclaration(
-            name=_TOOL_NAME,
-            description="Choose the URL to fetch and any safe request headers.",
-            parameters=_PARAMETERS,
-        )
-        config = genai_types.GenerateContentConfig(
-            system_instruction=_SYSTEM_PROMPT,
-            tools=[genai_types.Tool(function_declarations=[function])],
-            tool_config=genai_types.ToolConfig(
-                function_calling_config=genai_types.FunctionCallingConfig(
-                    mode="ANY", allowed_function_names=[_TOOL_NAME]
-                )
-            ),
-        )
-        try:
+            function = genai_types.FunctionDeclaration(
+                name=_TOOL_NAME,
+                description="Choose the URL to fetch and any safe request headers.",
+                parameters=_PARAMETERS,
+            )
+            config = genai_types.GenerateContentConfig(
+                system_instruction=_SYSTEM_PROMPT,
+                tools=[genai_types.Tool(function_declarations=[function])],
+                tool_config=genai_types.ToolConfig(
+                    function_calling_config=genai_types.FunctionCallingConfig(
+                        mode="ANY", allowed_function_names=[_TOOL_NAME]
+                    )
+                ),
+            )
             response = client.models.generate_content(
                 model=self.model,
                 contents=_context_to_prompt(context),
@@ -285,10 +304,13 @@ class GeminiAiResolver:
             )
         except Exception:
             return None
+        finally:
+            _close_quietly(client)
 
         for call in getattr(response, "function_calls", None) or []:
             if getattr(call, "name", None) == _TOOL_NAME:
-                data = call.args if isinstance(call.args, dict) else dict(call.args or {})
+                args = getattr(call, "args", None)
+                data = dict(args) if isinstance(args, dict) else {}
                 return _hint_from_args(data, self.model, "gemini")
         return None
 
@@ -336,8 +358,11 @@ def ai_resolver_from_env() -> Optional[object]:
     - ``WEBCANON_AI_PROVIDER`` — ``anthropic`` | ``openai`` | ``gemini`` to
       enable; ``none`` / unset to disable.
     - ``WEBCANON_AI_MODEL`` — model id (per-provider default if unset).
-    - provider API key: ``ANTHROPIC_API_KEY`` / ``OPENAI_API_KEY`` /
-      ``GEMINI_API_KEY`` (or ``GOOGLE_API_KEY``).
+
+    The provider API key (``ANTHROPIC_API_KEY`` / ``OPENAI_API_KEY`` /
+    ``GEMINI_API_KEY`` or ``GOOGLE_API_KEY``) is read from the environment by the
+    provider's own SDK at call time — this factory does not pass it through, so
+    the SDK's standard key/credential precedence applies.
 
     Returns ``None`` when no provider is configured, so callers can do
     ``RetrievalConfig(ai_resolver=ai_resolver_from_env())`` unconditionally.
