@@ -44,6 +44,12 @@ headless = [
 ai = [
     "anthropic>=0.40",
 ]
+openai = [
+    "openai>=1.40",
+]
+gemini = [
+    "google-genai>=0.3",
+]
 dev = [
     "pytest>=7",
     "build>=1.0",

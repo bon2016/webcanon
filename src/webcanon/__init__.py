@@ -37,7 +37,12 @@ from .hooks import (
     Extractor,
     Fetcher,
 )
-from .ai import AnthropicAiResolver, ai_resolver_from_env
+from .ai import (
+    AnthropicAiResolver,
+    GeminiAiResolver,
+    OpenAiAiResolver,
+    ai_resolver_from_env,
+)
 from .headless import PlaywrightFetcher
 from .robots import RobotsPolicy, RobotsVerdict, evaluate_robots, parse_robots
 from .schema import RETRIEVE_TOOL, as_anthropic_tool, as_openai_tool
@@ -59,6 +64,8 @@ __all__ = [
     "Extractor",
     "PlaywrightFetcher",
     "AnthropicAiResolver",
+    "OpenAiAiResolver",
+    "GeminiAiResolver",
     "ai_resolver_from_env",
     "RetrievalResult",
     "RobotsPolicy",
