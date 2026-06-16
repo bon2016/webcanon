@@ -1,3 +1,9 @@
+---
+title: AI framework affinity
+nav_order: 9
+layout: default
+---
+
 # AI framework affinity
 
 > **Status: analysis & roadmap, not MVP.** This document assesses how readily

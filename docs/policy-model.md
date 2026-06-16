@@ -1,3 +1,9 @@
+---
+title: Policy model
+nav_order: 3
+layout: default
+---
+
 # Policy model
 
 WebCanon treats `robots.txt`, `llms.txt`, and `sitemap.xml` as three **distinct**

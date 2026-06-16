@@ -1,0 +1,34 @@
+title: WebCanon
+description: Policy-aware web retrieval for AI — robots.txt, llms.txt, sitemap.xml, fetching, extraction, and provenance in one layer.
+remote_theme: just-the-docs/just-the-docs
+url: https://bon2016.github.io
+baseurl: /webcanon
+
+# Navigation / UI
+search_enabled: true
+heading_anchors: true
+color_scheme: light
+
+aux_links:
+  "GitHub":
+    - "https://github.com/bon2016/webcanon"
+  "PyPI":
+    - "https://pypi.org/project/webcanon/"
+aux_links_new_tab: true
+
+# Footer
+back_to_top: true
+back_to_top_text: "Back to top"
+
+# Jekyll
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+
+# Exclude non-doc files from the build
+exclude:
+  - 00_memo.md
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor
