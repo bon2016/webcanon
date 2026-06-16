@@ -1,3 +1,9 @@
+---
+title: llms.txt resolution
+nav_order: 5
+layout: default
+---
+
 # llms.txt resolution
 
 [`llms.txt`](https://llmstxt.org/) is a proposal for an LLM-friendly index at a

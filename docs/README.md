@@ -1,5 +1,7 @@
 # WebCanon documentation
 
+📖 **Rendered documentation site: <https://bon2016.github.io/webcanon/>**
+
 | Document | Contents |
 | --- | --- |
 | [architecture.md](architecture.md) | Pipeline overview, module map, roadmap |

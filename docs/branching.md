@@ -1,3 +1,9 @@
+---
+title: Branching & commits
+nav_order: 10
+layout: default
+---
+
 # Branching & commit strategy
 
 ## Branch model: GitHub Flow

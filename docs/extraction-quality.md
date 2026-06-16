@@ -1,3 +1,9 @@
+---
+title: Extraction quality
+nav_order: 6
+layout: default
+---
+
 # Extraction quality
 
 Extraction turns fetched bytes into LLM-ready Markdown **plus** a quality signal.

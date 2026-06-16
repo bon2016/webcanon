@@ -1,3 +1,9 @@
+---
+title: Publishing
+nav_order: 11
+layout: default
+---
+
 # Publishing to PyPI
 
 This is the end-to-end procedure to publish `webcanon` as a Python package.

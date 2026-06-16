@@ -1,3 +1,9 @@
+---
+title: Customization
+nav_order: 7
+layout: default
+---
+
 # Customization hooks
 
 WebCanon's pipeline runs through three replaceable callables. All default to the

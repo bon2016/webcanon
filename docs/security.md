@@ -1,3 +1,9 @@
+---
+title: Security
+nav_order: 8
+layout: default
+---
+
 # Security model
 
 WebCanon fetches arbitrary, attacker-influenced URLs and processes

@@ -2,6 +2,8 @@
 
 **Policy-aware web retrieval for AI.**
 
+*[日本語版 README はこちら](README.ja.md) — Documentation site: <https://bon2016.github.io/webcanon/>*
+
 WebCanon is an open-source retrieval layer that turns a **URL** into
 trustworthy, policy-checked, citation-ready context for LLMs.
 

@@ -1,3 +1,9 @@
+---
+title: robots.txt compliance
+nav_order: 4
+layout: default
+---
+
 # robots.txt compliance (RFC 9309)
 
 `webcanon.robots` is a pure, I/O-free implementation of the Robots Exclusion

@@ -1,3 +1,9 @@
+---
+title: Architecture
+nav_order: 2
+layout: default
+---
+
 # Architecture
 
 WebCanon is a **retrieval pipeline + policy engine + evidence log**. Given a URL,
