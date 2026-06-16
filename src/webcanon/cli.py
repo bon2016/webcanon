@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import textwrap
 from typing import Optional
 
 from . import __version__
-from .ai import ai_resolver_from_env
+from .ai import SUPPORTED_PROVIDERS, build_ai_resolver
 from .client import WebCanon
 from .config import (
     ExtractionConfig,
@@ -47,13 +48,20 @@ _EPILOG = textwrap.dedent(
     AI reasoning (optional):
       With --ai, llms.txt is consulted. By default a built-in rule engine picks
       the candidate (exact llms.txt match -> .md variant -> original URL). To let
-      an LLM choose the URL and request headers instead, configure a provider via
-      environment variables:
+      an LLM choose the URL and request headers instead, name a provider — on the
+      command line or via environment variables:
+
+        --ai-provider {anthropic,openai,gemini}   (implies --ai)
+        --ai-model MODEL                          (overrides the default model)
 
         WEBCANON_AI_PROVIDER   anthropic | openai | gemini  (unset/'none' = off)
         WEBCANON_AI_MODEL      model id (per-provider default if unset)
         <provider key>         ANTHROPIC_API_KEY / OPENAI_API_KEY /
                                GEMINI_API_KEY (or GOOGLE_API_KEY)
+
+      Flags take precedence over the env vars. Examples:
+        webcanon fetch <url> --ai-provider openai --ai-model gpt-4o
+        WEBCANON_AI_PROVIDER=gemini webcanon fetch <url> --ai
 
       Install the matching extra:
         pip install "webcanon[ai]"      # anthropic (Claude)
@@ -74,26 +82,43 @@ _EPILOG = textwrap.dedent(
 )
 
 
+def _ai_enabled(args: argparse.Namespace) -> bool:
+    """AI reasoning is on when --ai is set or a provider is named explicitly."""
+
+    return bool(getattr(args, "ai", False) or getattr(args, "ai_provider", None))
+
+
+def _build_ai_resolver(args: argparse.Namespace) -> Optional[object]:
+    """Resolve the AI resolver from CLI flags, falling back to the environment.
+
+    Precedence: ``--ai-provider`` / ``--ai-model`` flags > ``WEBCANON_AI_*``
+    env vars > per-provider defaults. With only ``--ai`` (no flags), the
+    environment configuration is used.
+    """
+
+    if not _ai_enabled(args):
+        return None
+    provider = getattr(args, "ai_provider", None) or os.environ.get(
+        "WEBCANON_AI_PROVIDER", ""
+    )
+    model = getattr(args, "ai_model", None) or os.environ.get("WEBCANON_AI_MODEL")
+    return build_ai_resolver(provider, model)
+
+
 def _build_client(args: argparse.Namespace) -> WebCanon:
-    # Only wire an AI resolver when the user asked for AI reasoning AND a
-    # provider is configured in the environment. Otherwise the built-in
-    # rule-based resolver is used.
-    ai_resolver = None
-    if getattr(args, "ai", False):
-        ai_resolver = ai_resolver_from_env()
     return WebCanon(
         RetrievalConfig(
             robots=RobotsConfig(mode=args.robots),
             llms=LlmsConfig(strategy=args.llms),
             extraction=ExtractionConfig(format=args.format),
-            ai_resolver=ai_resolver,
+            ai_resolver=_build_ai_resolver(args),
         )
     )
 
 
 def _cmd_fetch(args: argparse.Namespace) -> int:
     client = _build_client(args)
-    result = client.retrieve_url(args.url, ai_reasoning=args.ai)
+    result = client.retrieve_url(args.url, ai_reasoning=_ai_enabled(args))
     if args.report:
         with open(args.report, "w", encoding="utf-8") as fh:
             json.dump(result.to_dict(), fh, indent=2, ensure_ascii=False)
@@ -109,7 +134,7 @@ def _cmd_fetch(args: argparse.Namespace) -> int:
 
 def _cmd_inspect(args: argparse.Namespace) -> int:
     client = _build_client(args)
-    result = client.retrieve_url(args.url, ai_reasoning=args.ai)
+    result = client.retrieve_url(args.url, ai_reasoning=_ai_enabled(args))
     r = result
     lines = [
         f"URL: {r.request.input}",
@@ -179,7 +204,24 @@ def main(argv: Optional[list[str]] = None) -> int:
             action="store_true",
             help=(
                 "enable llms.txt resolution; uses the AI provider from "
-                "WEBCANON_AI_PROVIDER if set, else the built-in rule engine"
+                "--ai-provider / WEBCANON_AI_PROVIDER if set, else the rule engine"
+            ),
+        )
+        p.add_argument(
+            "--ai-provider",
+            choices=list(SUPPORTED_PROVIDERS),
+            metavar="{" + ",".join(SUPPORTED_PROVIDERS) + "}",
+            help=(
+                "AI provider to use (implies --ai); overrides "
+                "WEBCANON_AI_PROVIDER. Needs the provider's extra and API key."
+            ),
+        )
+        p.add_argument(
+            "--ai-model",
+            metavar="MODEL",
+            help=(
+                "AI model id; overrides WEBCANON_AI_MODEL "
+                "(default: the provider's default model)"
             ),
         )
         p.add_argument(
