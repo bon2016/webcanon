@@ -59,6 +59,15 @@ pip install "webcanon[headless]"
 python -m playwright install chromium
 ```
 
+For AI-driven `llms.txt` resolution (Anthropic / OpenAI / Gemini, optional):
+
+```bash
+pip install "webcanon[ai]"       # anthropic (Claude); or [openai] / [gemini]
+```
+
+See [AI providers & API keys](#ai-providers--api-keys) below for how to enable a
+provider.
+
 From source:
 
 ```bash
@@ -111,6 +120,79 @@ result = client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
 
 robots.txt always wins: an `AiHint` that points at a disallowed URL is ignored.
 See [`docs/customization.md`](docs/customization.md).
+
+## AI providers & API keys
+
+WebCanon ships built-in AI resolvers for three providers. Enable one from the
+environment — the CLI (`--ai`) and the library (`ai_resolver_from_env()`) share
+the same switch:
+
+| Provider | `WEBCANON_AI_PROVIDER` | **API key env var** | Install extra | Default model | Get a key |
+| --- | --- | --- | --- | --- | --- |
+| Anthropic (Claude) | `anthropic` | `ANTHROPIC_API_KEY` | `pip install "webcanon[ai]"` | `claude-opus-4-8` | <https://console.anthropic.com/> |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `pip install "webcanon[openai]"` | `gpt-5` | <https://platform.openai.com/api-keys> |
+| Google Gemini | `gemini` | `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) | `pip install "webcanon[gemini]"` | `gemini-2.5-pro` | <https://aistudio.google.com/apikey> |
+
+Select the provider and model by **environment variable** or **CLI flag** (the
+flags take precedence):
+
+| | Environment variable | CLI flag |
+| --- | --- | --- |
+| Provider | `WEBCANON_AI_PROVIDER` | `--ai-provider {anthropic,openai,gemini}` |
+| Model | `WEBCANON_AI_MODEL` | `--ai-model MODEL` |
+
+- `--ai-provider` implies `--ai` (you don't need both).
+- Unset / `none` provider disables AI (falls back to the built-in rule engine).
+- The API key always comes from the environment variable in the table above.
+
+### Representative models
+
+Any model the provider offers works — WebCanon passes the id straight through.
+**Bold** is the default; see [`docs/ai-models.md`](docs/ai-models.md) for the
+full list and guidance.
+
+| Provider | Common model ids |
+| --- | --- |
+| Anthropic | **`claude-opus-4-8`**, `claude-fable-5`, `claude-sonnet-4-6`, `claude-haiku-4-5` |
+| OpenAI | **`gpt-5`**, `gpt-5-mini`, `gpt-4o`, `gpt-4o-mini` |
+| Gemini | **`gemini-2.5-pro`**, `gemini-2.5-flash`, `gemini-2.5-flash-lite` |
+
+For this task (a small `llms.txt` decision), a fast/cheap model is usually
+plenty — e.g. `gpt-4o-mini`, `gemini-2.5-flash`, or `claude-haiku-4-5`. An
+unknown/retired id makes the resolver fall back to the rule engine, so retrieval
+never fails because of the model string.
+
+```bash
+# CLI flags (provider + model on the command line)
+export OPENAI_API_KEY=sk-...
+webcanon fetch https://example.com/docs/api --ai-provider openai --ai-model gpt-4o
+
+# Environment variables
+export WEBCANON_AI_PROVIDER=openai
+export OPENAI_API_KEY=sk-...
+# optional: export WEBCANON_AI_MODEL=gpt-4o
+webcanon fetch https://example.com/docs/api --ai
+
+# Google Gemini
+export WEBCANON_AI_PROVIDER=gemini
+export GEMINI_API_KEY=...           # GOOGLE_API_KEY also works
+webcanon fetch https://example.com/docs/api --ai
+
+# Anthropic (Claude)
+export WEBCANON_AI_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+webcanon fetch https://example.com/docs/api --ai
+```
+
+Notes:
+
+- The AI only *guides* retrieval: its chosen URL is re-checked against
+  `robots.txt` and the SSRF guard, and only safe content-negotiation headers
+  (`Accept`, …) are sent.
+- If the provider's SDK isn't installed or the API errors, the resolver declines
+  and WebCanon falls back to the rule engine — retrieval never fails because of AI.
+- OpenAI-compatible endpoints: pass `OpenAiAiResolver(base_url=...)` (or set
+  `OPENAI_BASE_URL`) when constructing the resolver in code.
 
 ## CLI
 

@@ -16,7 +16,7 @@ def _default_version() -> str:
     try:
         return _pkg_version("webcanon")
     except PackageNotFoundError:  # e.g. running from a source checkout
-        return "0.3.0"
+        return "0.4.0"
 
 RobotsMode = Literal["respect", "report_only", "ignore"]
 OnUnavailable = Literal["allow_with_warning", "deny"]

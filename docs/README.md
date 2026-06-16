@@ -10,6 +10,7 @@
 | [llms-resolution.md](llms-resolution.md) | `llms.txt` parsing & URL resolution |
 | [extraction-quality.md](extraction-quality.md) | HTML→Markdown extraction & quality scoring |
 | [customization.md](customization.md) | Injectable fetcher / extractor / AI resolver hooks |
+| [ai-models.md](ai-models.md) | Supported model strings per provider (Anthropic / OpenAI / Gemini) |
 | [security.md](security.md) | SSRF guard, prompt-injection firewall, provenance |
 | [ai-framework-affinity.md](ai-framework-affinity.md) | Fit with LangChain/LlamaIndex/MCP and the neutral adapter surface |
 | [branching.md](branching.md) | Branch model, Conventional Commits, versioning |

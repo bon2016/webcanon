@@ -57,7 +57,63 @@ result.selected_source.final_url    # the URL actually fetched
 If no `ai_resolver` is configured, WebCanon falls back to the built-in
 rule-based resolver (exact `llms.txt` match → `.md` variant → original URL).
 
-## Writing an `ai_resolver`
+## Built-in AI resolvers (Anthropic / OpenAI / Gemini, via env vars)
+
+WebCanon ships `ai_resolver` implementations for three providers. Enable one
+from the environment so the CLI and the library share a single switch:
+
+| Variable | Meaning |
+| --- | --- |
+| `WEBCANON_AI_PROVIDER` | `anthropic` \| `openai` \| `gemini` to enable; unset / `none` to disable |
+| `WEBCANON_AI_MODEL` | model id (per-provider default if unset) |
+| provider API key | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) |
+
+| Provider | `WEBCANON_AI_PROVIDER` | Extra | Default model | Resolver class |
+| --- | --- | --- | --- | --- |
+| Anthropic (Claude) | `anthropic` | `pip install "webcanon[ai]"` | `claude-opus-4-8` | `AnthropicAiResolver` |
+| OpenAI | `openai` | `pip install "webcanon[openai]"` | `gpt-5` | `OpenAiAiResolver` |
+| Google Gemini | `gemini` | `pip install "webcanon[gemini]"` | `gemini-2.5-pro` | `GeminiAiResolver` |
+
+CLI — pick the provider/model via env vars or flags (flags win; `--ai-provider`
+implies `--ai`):
+
+```bash
+# Flags
+export OPENAI_API_KEY=sk-...
+webcanon fetch https://example.com/docs/api --ai-provider openai --ai-model gpt-4o
+
+# Or env vars
+export WEBCANON_AI_PROVIDER=openai          # or anthropic / gemini
+export OPENAI_API_KEY=sk-...
+# optional: export WEBCANON_AI_MODEL=gpt-4o
+webcanon fetch https://example.com/docs/api --ai
+```
+
+| | Environment variable | CLI flag |
+| --- | --- | --- |
+| Provider | `WEBCANON_AI_PROVIDER` | `--ai-provider {anthropic,openai,gemini}` |
+| Model | `WEBCANON_AI_MODEL` | `--ai-model MODEL` |
+
+Library — `ai_resolver_from_env()` returns the configured resolver or `None`:
+
+```python
+from webcanon import WebCanon
+from webcanon.ai import ai_resolver_from_env
+from webcanon.config import RetrievalConfig
+
+client = WebCanon(RetrievalConfig(ai_resolver=ai_resolver_from_env()))
+result = client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
+print(result.policy.llms.resolved_by)  # "ai" when the model rerouted
+```
+
+The model is handed the URL + parsed `llms.txt` + robots verdict and returns a
+URL read-through plus safe content-negotiation headers. Its choice is **never
+trusted**: the URL is re-evaluated against `robots.txt` and the SSRF guard, and
+only allowlisted headers are sent (see [security.md](security.md)). If the
+`anthropic` package isn't installed or the API errors, the resolver declines
+and WebCanon falls back to the rule engine.
+
+## Writing a custom `ai_resolver`
 
 ```python
 from typing import Optional
@@ -152,9 +208,23 @@ It enforces the SSRF guard for the target **and** the final (post-navigation)
 URL, and applies the `FetchConfig` timeout and body-size limits. If Playwright
 is not installed, it raises a clear `FetchError` telling you how to install it.
 
-## Raw HTML in the result
+## `document.html` and `document.markdown` semantics
 
-Every `RetrievalResult` now carries the raw fetched source on
-`result.document.html` (alongside `markdown` and `text`), so you can re-extract,
-audit, or render the original. It is included in `to_dict()` but **not** in
-`to_document()` (the RAG/document shape stays lean).
+`document.html` always holds **raw HTML** (or `None`), and `document.markdown`
+always holds **Markdown**. How they're populated depends on what was fetched:
+
+| Fetched content | `document.markdown` | `document.html` |
+| --- | --- | --- |
+| HTML (AI off, or AI/llms chose an HTML page) | rule-based conversion of that HTML | that HTML |
+| Markdown via AI/llms reroute (final URL ≠ requested) | the fetched Markdown | the **originally-requested URL's** HTML, fetched separately |
+| Markdown directly from the requested URL | the fetched Markdown | `None` (no distinct HTML exists) |
+
+The separate "original HTML" fetch (second row) is **best-effort and
+policy-aware**: it works like `curl`/`httpx` by default, but if the original URL
+is disallowed by `robots.txt` (in `respect` mode), errors, or isn't HTML, then
+`document.html` is `None` and the Markdown result still succeeds. This keeps the
+module usable as a general fetcher while staying governance-friendly for
+robots-sensitive deployments.
+
+`document.html` is included in `to_dict()` but **not** in `to_document()` (the
+RAG/document shape stays lean).

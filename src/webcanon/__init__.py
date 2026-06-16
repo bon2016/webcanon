@@ -37,12 +37,20 @@ from .hooks import (
     Extractor,
     Fetcher,
 )
+from .ai import (
+    SUPPORTED_PROVIDERS,
+    AnthropicAiResolver,
+    GeminiAiResolver,
+    OpenAiAiResolver,
+    ai_resolver_from_env,
+    build_ai_resolver,
+)
 from .headless import PlaywrightFetcher
 from .robots import RobotsPolicy, RobotsVerdict, evaluate_robots, parse_robots
 from .schema import RETRIEVE_TOOL, as_anthropic_tool, as_openai_tool
 from .types import RetrievalResult
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "WebCanon",
@@ -57,6 +65,12 @@ __all__ = [
     "Fetcher",
     "Extractor",
     "PlaywrightFetcher",
+    "AnthropicAiResolver",
+    "OpenAiAiResolver",
+    "GeminiAiResolver",
+    "ai_resolver_from_env",
+    "build_ai_resolver",
+    "SUPPORTED_PROVIDERS",
     "RetrievalResult",
     "RobotsPolicy",
     "RobotsVerdict",

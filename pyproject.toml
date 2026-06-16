@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "webcanon"
-version = "0.3.0"
+version = "0.4.0"
 description = "Policy-aware web retrieval for AI: robots.txt, llms.txt, sitemap.xml, fetching, extraction, and provenance in one layer."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -40,6 +40,15 @@ dependencies = [
 [project.optional-dependencies]
 headless = [
     "playwright>=1.40",
+]
+ai = [
+    "anthropic>=0.40",
+]
+openai = [
+    "openai>=1.40",
+]
+gemini = [
+    "google-genai>=0.3",
 ]
 dev = [
     "pytest>=7",

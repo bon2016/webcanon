@@ -5,6 +5,59 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/) (during `0.x`, MINOR may include
 breaking changes).
 
+## [0.4.0] - 2026-06-16
+
+### Added
+- **Built-in AI resolvers for three providers, configured via environment
+  variables.** `AnthropicAiResolver` (Claude, default `claude-opus-4-8`),
+  `OpenAiAiResolver` (default `gpt-5`), and `GeminiAiResolver`
+  (default `gemini-2.5-pro`) each reason over the URL + parsed `llms.txt` +
+  robots verdict and return a URL read-through plus safe headers.
+  `ai_resolver_from_env()` reads `WEBCANON_AI_PROVIDER`
+  (`anthropic`/`openai`/`gemini`) / `WEBCANON_AI_MODEL` / the provider's API key
+  (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` or
+  `GOOGLE_API_KEY`) and returns a resolver or `None`. Optional extras:
+  `pip install "webcanon[ai]"` / `"[openai]"` / `"[gemini]"`.
+- **Provider/model selection by env var or CLI flag.** New CLI flags
+  `--ai-provider {anthropic,openai,gemini}` (implies `--ai`) and `--ai-model`
+  take precedence over `WEBCANON_AI_PROVIDER` / `WEBCANON_AI_MODEL`. New public
+  helper `build_ai_resolver(provider, model)` and `SUPPORTED_PROVIDERS`.
+- **CLI `--ai` uses the configured AI provider** (flags, then env), falling back
+  to the built-in rule engine otherwise.
+- **Much richer CLI help**: descriptions, per-option explanations, an examples
+  section, an AI provider/flag/env reference, and notes (scope, SSRF, User-Agent).
+
+### Changed
+- **`document.html` always holds raw HTML (or `None`); `document.markdown`
+  always holds Markdown.** When the AI/llms resolver reroutes to a Markdown
+  document, the fetched Markdown goes to `document.markdown` and the
+  **originally-requested URL's HTML** is fetched separately into
+  `document.html`. That second fetch is best-effort and policy-aware: if the
+  original URL is robots-disallowed (in `respect` mode), errors, or isn't HTML,
+  `document.html` is `None` and the Markdown result still succeeds. A Markdown
+  body fetched directly from the requested URL now yields `document.html=None`
+  (previously the Markdown was duplicated into `html`).
+- New helper `webcanon.extract.is_markdown_content_type()`.
+
+### Security
+- The AI's chosen URL is re-evaluated against `robots.txt` and the SSRF guard;
+  only allowlisted headers are forwarded. A missing provider package or an
+  API/client-init error makes the resolver decline rather than fail retrieval.
+
+### Fixed (review)
+- `llms.strategy="force"` no longer fails retrieval when the AI resolver
+  declines (transient API error / no hint): it falls back to the rule-based
+  resolver and only raises if *no* allowed candidate exists at all.
+- Resolvers wrap client construction (not just the API call) and close the SDK
+  client after use, so a bad environment declines cleanly and HTTP connection
+  pools don't leak for batch/daemon callers.
+- AI tool arguments are validated: a non-string `url` becomes `None` and
+  non-dict `headers` become `{}` instead of crashing downstream.
+- An unknown `WEBCANON_AI_PROVIDER` prints a clean `error: ...` from the CLI
+  instead of an uncaught traceback.
+- Clarified the CLI help wording for `block_private_addresses` (the guard blocks
+  by default; the setting disables it).
+
 ## [0.3.0] - 2026-06-16
 
 ### Added
@@ -62,6 +115,7 @@ breaking changes).
 - Provenance-bearing `RetrievalResult` (Retrieval Bill of Materials).
 - CLI: `webcanon fetch` and `webcanon inspect`.
 
+[0.4.0]: https://github.com/bon2016/webcanon/releases/tag/v0.4.0
 [0.3.0]: https://github.com/bon2016/webcanon/releases/tag/v0.3.0
 [0.2.0]: https://github.com/bon2016/webcanon/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bon2016/webcanon/releases/tag/v0.1.0

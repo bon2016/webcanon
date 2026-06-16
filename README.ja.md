@@ -54,6 +54,14 @@ pip install "webcanon[headless]"
 python -m playwright install chromium
 ```
 
+AI による `llms.txt` 解決向け（Anthropic / OpenAI / Gemini・任意）:
+
+```bash
+pip install "webcanon[ai]"       # anthropic (Claude)。または [openai] / [gemini]
+```
+
+有効化の方法は下記 [AI プロバイダと API キー](#ai-プロバイダと-api-キー) を参照してください。
+
 ソースから:
 
 ```bash
@@ -106,6 +114,77 @@ result = client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
 robots.txt が常に優先されます。`AiHint` が Disallow の URL を指した場合、その
 ヒントは（URL もヘッダーも）破棄され、通常の解決が継続されます。
 詳細は [`docs/customization.md`](docs/customization.md)（[日本語版サイト](https://bon2016.github.io/webcanon/)）を参照してください。
+
+## AI プロバイダと API キー
+
+WebCanon は3つのプロバイダ向けの組み込み AI リゾルバを同梱しています。環境変数で
+1つを有効化します（CLI の `--ai` とライブラリの `ai_resolver_from_env()` で共通）:
+
+| プロバイダ | `WEBCANON_AI_PROVIDER` | **API キーの環境変数** | インストール extra | 既定モデル | キー取得 |
+| --- | --- | --- | --- | --- | --- |
+| Anthropic (Claude) | `anthropic` | `ANTHROPIC_API_KEY` | `pip install "webcanon[ai]"` | `claude-opus-4-8` | <https://console.anthropic.com/> |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `pip install "webcanon[openai]"` | `gpt-5` | <https://platform.openai.com/api-keys> |
+| Google Gemini | `gemini` | `GEMINI_API_KEY`（または `GOOGLE_API_KEY`） | `pip install "webcanon[gemini]"` | `gemini-2.5-pro` | <https://aistudio.google.com/apikey> |
+
+プロバイダとモデルは **環境変数** でも **コマンドライン引数** でも指定できます
+（引数が優先）:
+
+| | 環境変数 | コマンドライン引数 |
+| --- | --- | --- |
+| プロバイダ | `WEBCANON_AI_PROVIDER` | `--ai-provider {anthropic,openai,gemini}` |
+| モデル | `WEBCANON_AI_MODEL` | `--ai-model MODEL` |
+
+- `--ai-provider` は `--ai` を含意します（両方指定する必要はありません）。
+- 未設定 / `none` で無効（組み込みルールエンジンにフォールバック）。
+- API キーは常に上表の環境変数から読み込まれます。
+
+### 代表的なモデル
+
+各プロバイダが提供するモデルはそのまま指定できます（WebCanon はモデル ID を
+そのまま渡します）。**太字**が既定。全一覧と指針は
+[`docs/ai-models.md`](docs/ai-models.md) を参照してください。
+
+| プロバイダ | 代表的なモデル ID |
+| --- | --- |
+| Anthropic | **`claude-opus-4-8`**, `claude-fable-5`, `claude-sonnet-4-6`, `claude-haiku-4-5` |
+| OpenAI | **`gpt-5`**, `gpt-5-mini`, `gpt-4o`, `gpt-4o-mini` |
+| Gemini | **`gemini-2.5-pro`**, `gemini-2.5-flash`, `gemini-2.5-flash-lite` |
+
+本ユースケース（`llms.txt` の小さな判断）では高速・低コストなモデルで十分な
+ことが多いです（例: `gpt-4o-mini` / `gemini-2.5-flash` / `claude-haiku-4-5`）。
+不正・廃止済みの ID を指定した場合はルールエンジンにフォールバックするため、
+モデル文字列が原因で取得が失敗することはありません。
+
+```bash
+# コマンドライン引数（プロバイダ・モデルを引数で指定）
+export OPENAI_API_KEY=sk-...
+webcanon fetch https://example.com/docs/api --ai-provider openai --ai-model gpt-4o
+
+# 環境変数
+export WEBCANON_AI_PROVIDER=openai
+export OPENAI_API_KEY=sk-...
+# 任意: export WEBCANON_AI_MODEL=gpt-4o
+webcanon fetch https://example.com/docs/api --ai
+
+# Google Gemini
+export WEBCANON_AI_PROVIDER=gemini
+export GEMINI_API_KEY=...           # GOOGLE_API_KEY でも可
+webcanon fetch https://example.com/docs/api --ai
+
+# Anthropic (Claude)
+export WEBCANON_AI_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+webcanon fetch https://example.com/docs/api --ai
+```
+
+注意:
+
+- AI は取得を*ガイド*するだけです。選んだ URL は `robots.txt` と SSRF ガードで
+  再検証され、安全なヘッダー（`Accept` など）のみ送信されます。
+- プロバイダの SDK 未インストールや API エラー時は、リゾルバは何もせずルール
+  エンジンにフォールバックします（AI が原因で取得が失敗することはありません）。
+- OpenAI 互換エンドポイント: コードで `OpenAiAiResolver(base_url=...)` を渡す
+  （または `OPENAI_BASE_URL` を設定）。
 
 ## CLI
 
