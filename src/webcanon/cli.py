@@ -73,8 +73,8 @@ _EPILOG = textwrap.dedent(
 
     notes:
       * Web search is out of scope; the input is always a specific URL.
-      * localhost / private IPs are blocked by the SSRF guard (library only:
-        FetchConfig(block_private_addresses=False)).
+      * localhost / private IPs are blocked by the SSRF guard by default; to
+        allow them, set FetchConfig(block_private_addresses=False) (library only).
       * Default User-Agent product token is 'WebCanon'.
 
     docs: https://bon2016.github.io/webcanon/
@@ -289,7 +289,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parser.parse_args(argv)
     try:
         return args.func(args)
-    except WebCanonError as exc:
+    except (WebCanonError, ValueError) as exc:
+        # ValueError covers an unknown WEBCANON_AI_PROVIDER from build_ai_resolver.
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
