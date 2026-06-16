@@ -51,7 +51,7 @@ class LlmsDecision:
     # "rule_based" (built-in resolver) or "ai" (injected ai_resolver).
     resolved_by: str = "rule_based"
     # Extra request headers an AI resolver asked us to send.
-    applied_headers: dict[str, Any] = field(default_factory=dict)
+    applied_headers: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
