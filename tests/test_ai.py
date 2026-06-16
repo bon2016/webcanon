@@ -164,6 +164,65 @@ def test_resolver_declines_on_api_error(monkeypatch):
     assert AnthropicAiResolver()(_ctx()) is None
 
 
+def test_resolver_declines_on_client_init_error(monkeypatch):
+    class _Client:
+        def __init__(self, *a, **k):
+            raise RuntimeError("bad env")
+
+    monkeypatch.setitem(sys.modules, "anthropic", types.SimpleNamespace(Anthropic=_Client))
+    assert AnthropicAiResolver()(_ctx()) is None
+
+
+def test_resolver_closes_client(monkeypatch):
+    closed = {"v": False}
+
+    class _Block:
+        type = "tool_use"
+        input = {"url": "https://example.com/docs/api.md", "reason": "x"}
+
+    class _Resp:
+        content = [_Block()]
+
+    class _Messages:
+        def create(self, **kwargs):
+            return _Resp()
+
+    class _Client:
+        def __init__(self, *a, **k):
+            self.messages = _Messages()
+
+        def close(self):
+            closed["v"] = True
+
+    monkeypatch.setitem(sys.modules, "anthropic", types.SimpleNamespace(Anthropic=_Client))
+    AnthropicAiResolver()(_ctx())
+    assert closed["v"] is True
+
+
+def test_resolver_tolerates_nonstring_url_and_nondict_headers(monkeypatch):
+    class _Block:
+        type = "tool_use"
+        input = {"url": 123, "headers": "not-a-dict", "reason": "x"}
+
+    class _Resp:
+        content = [_Block()]
+
+    class _Messages:
+        def create(self, **kwargs):
+            return _Resp()
+
+    class _Client:
+        def __init__(self, *a, **k):
+            self.messages = _Messages()
+
+    monkeypatch.setitem(sys.modules, "anthropic", types.SimpleNamespace(Anthropic=_Client))
+    hint = AnthropicAiResolver()(_ctx())
+    # Non-string url -> None (keep requested); non-dict headers -> {} (no crash).
+    assert hint is not None
+    assert hint.url is None
+    assert hint.headers == {}
+
+
 # -- OpenAI -------------------------------------------------------------
 def _install_fake_openai(monkeypatch, *, arguments=None, raise_error=False):
     import json as _json

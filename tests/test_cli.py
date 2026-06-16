@@ -64,3 +64,14 @@ def test_unknown_flag_provider_rejected_by_parser():
     # argparse choices reject an unknown provider before our code runs.
     with pytest.raises(SystemExit):
         cli.main(["fetch", "https://example.com", "--ai-provider", "bogus"])
+
+
+def test_unknown_env_provider_prints_clean_error(monkeypatch, capsys):
+    # An unknown WEBCANON_AI_PROVIDER (not gated by argparse choices) must surface
+    # as a clean "error: ..." message, not a traceback / uncaught ValueError.
+    monkeypatch.setenv("WEBCANON_AI_PROVIDER", "bogus")
+    rc = cli.main(["fetch", "https://example.com", "--ai"])
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert err.startswith("error:")
+    assert "bogus" in err

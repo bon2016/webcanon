@@ -4,7 +4,13 @@ import httpx
 import pytest
 
 from webcanon import AiContext, AiHint, WebCanon
-from webcanon.config import FetchConfig, RetrievalConfig, UserAgentConfig
+from webcanon.config import (
+    FetchConfig,
+    LlmsConfig,
+    RetrievalConfig,
+    RobotsConfig,
+    UserAgentConfig,
+)
 from webcanon.errors import PolicyError
 from webcanon.extract import ExtractedDocument
 from webcanon.fetch import FetchResponse
@@ -322,3 +328,60 @@ def test_ai_resolver_not_called_without_ai_reasoning():
     )
     result = client.retrieve_url("https://example.com/page")  # no ai_reasoning
     assert result.selected_source.selected_by == "direct"
+
+
+def test_force_falls_back_to_rule_engine_when_ai_declines():
+    # AI resolver errors out (returns None). With llms strategy 'force', a
+    # transient AI failure must NOT fail retrieval when an allowed rule-based
+    # candidate (.md variant) exists.
+    def failing_ai(ctx):
+        return None  # simulates an API/network error → declined
+
+    def routes(req):
+        path = req.url.path
+        if path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow:")
+        if path == "/llms.txt":
+            return httpx.Response(404)
+        if path == "/docs/api.md":
+            return httpx.Response(200, headers={"content-type": "text/markdown"}, text="# md")
+        if path == "/docs/api":
+            return httpx.Response(200, headers={"content-type": "text/html"}, text="<p>x</p>")
+        return httpx.Response(404)
+
+    client = WebCanon(
+        RetrievalConfig(
+            ai_resolver=failing_ai,
+            llms=LlmsConfig(strategy="force"),
+            fetch=FetchConfig(block_private_addresses=False),
+        ),
+        client=_mock_http(routes),
+    )
+    # Does not raise: rule-based resolver picks the allowed .md candidate.
+    result = client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
+    assert result.policy.llms.resolved_by == "rule_based"
+    assert result.selected_source.final_url.endswith("/docs/api.md")
+
+
+def test_force_still_raises_when_no_candidate_allowed():
+    # AI declines AND no rule-based candidate is allowed → force genuinely fails.
+    def failing_ai(ctx):
+        return None
+
+    def routes(req):
+        path = req.url.path
+        if path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow: /")
+        return httpx.Response(404)
+
+    client = WebCanon(
+        RetrievalConfig(
+            ai_resolver=failing_ai,
+            llms=LlmsConfig(strategy="force"),
+            robots=RobotsConfig(mode="respect"),
+            fetch=FetchConfig(block_private_addresses=False),
+        ),
+        client=_mock_http(routes),
+    )
+    with pytest.raises(PolicyError):
+        client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
