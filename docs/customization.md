@@ -208,9 +208,23 @@ It enforces the SSRF guard for the target **and** the final (post-navigation)
 URL, and applies the `FetchConfig` timeout and body-size limits. If Playwright
 is not installed, it raises a clear `FetchError` telling you how to install it.
 
-## Raw HTML in the result
+## `document.html` and `document.markdown` semantics
 
-Every `RetrievalResult` now carries the raw fetched source on
-`result.document.html` (alongside `markdown` and `text`), so you can re-extract,
-audit, or render the original. It is included in `to_dict()` but **not** in
-`to_document()` (the RAG/document shape stays lean).
+`document.html` always holds **raw HTML** (or `None`), and `document.markdown`
+always holds **Markdown**. How they're populated depends on what was fetched:
+
+| Fetched content | `document.markdown` | `document.html` |
+| --- | --- | --- |
+| HTML (AI off, or AI/llms chose an HTML page) | rule-based conversion of that HTML | that HTML |
+| Markdown via AI/llms reroute (final URL ≠ requested) | the fetched Markdown | the **originally-requested URL's** HTML, fetched separately |
+| Markdown directly from the requested URL | the fetched Markdown | `None` (no distinct HTML exists) |
+
+The separate "original HTML" fetch (second row) is **best-effort and
+policy-aware**: it works like `curl`/`httpx` by default, but if the original URL
+is disallowed by `robots.txt` (in `respect` mode), errors, or isn't HTML, then
+`document.html` is `None` and the Markdown result still succeeds. This keeps the
+module usable as a general fetcher while staying governance-friendly for
+robots-sensitive deployments.
+
+`document.html` is included in `to_dict()` but **not** in `to_document()` (the
+RAG/document shape stays lean).

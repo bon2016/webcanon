@@ -27,6 +27,18 @@ breaking changes).
 - **Much richer CLI help**: descriptions, per-option explanations, an examples
   section, an AI provider/flag/env reference, and notes (scope, SSRF, User-Agent).
 
+### Changed
+- **`document.html` always holds raw HTML (or `None`); `document.markdown`
+  always holds Markdown.** When the AI/llms resolver reroutes to a Markdown
+  document, the fetched Markdown goes to `document.markdown` and the
+  **originally-requested URL's HTML** is fetched separately into
+  `document.html`. That second fetch is best-effort and policy-aware: if the
+  original URL is robots-disallowed (in `respect` mode), errors, or isn't HTML,
+  `document.html` is `None` and the Markdown result still succeeds. A Markdown
+  body fetched directly from the requested URL now yields `document.html=None`
+  (previously the Markdown was duplicated into `html`).
+- New helper `webcanon.extract.is_markdown_content_type()`.
+
 ### Security
 - The AI's chosen URL is re-evaluated against `robots.txt` and the SSRF guard;
   only allowlisted headers are forwarded. A missing `anthropic` package or an
