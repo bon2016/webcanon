@@ -41,8 +41,22 @@ breaking changes).
 
 ### Security
 - The AI's chosen URL is re-evaluated against `robots.txt` and the SSRF guard;
-  only allowlisted headers are forwarded. A missing `anthropic` package or an
-  API error makes the resolver decline rather than fail retrieval.
+  only allowlisted headers are forwarded. A missing provider package or an
+  API/client-init error makes the resolver decline rather than fail retrieval.
+
+### Fixed (review)
+- `llms.strategy="force"` no longer fails retrieval when the AI resolver
+  declines (transient API error / no hint): it falls back to the rule-based
+  resolver and only raises if *no* allowed candidate exists at all.
+- Resolvers wrap client construction (not just the API call) and close the SDK
+  client after use, so a bad environment declines cleanly and HTTP connection
+  pools don't leak for batch/daemon callers.
+- AI tool arguments are validated: a non-string `url` becomes `None` and
+  non-dict `headers` become `{}` instead of crashing downstream.
+- An unknown `WEBCANON_AI_PROVIDER` prints a clean `error: ...` from the CLI
+  instead of an uncaught traceback.
+- Clarified the CLI help wording for `block_private_addresses` (the guard blocks
+  by default; the setting disables it).
 
 ## [0.3.0] - 2026-06-16
 
