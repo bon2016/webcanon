@@ -57,29 +57,30 @@ result.selected_source.final_url    # the URL actually fetched
 If no `ai_resolver` is configured, WebCanon falls back to the built-in
 rule-based resolver (exact `llms.txt` match → `.md` variant → original URL).
 
-## Built-in AI resolver (Claude, via environment variables)
+## Built-in AI resolvers (Anthropic / OpenAI / Gemini, via env vars)
 
-WebCanon ships an `ai_resolver` backed by Claude. Enable it from the
-environment so the CLI and the library share one switch:
+WebCanon ships `ai_resolver` implementations for three providers. Enable one
+from the environment so the CLI and the library share a single switch:
 
 | Variable | Meaning |
 | --- | --- |
-| `WEBCANON_AI_PROVIDER` | `anthropic` to enable; unset / `none` to disable |
-| `WEBCANON_AI_MODEL` | model id (default `claude-opus-4-8`) |
-| `ANTHROPIC_API_KEY` | API key for the `anthropic` provider |
+| `WEBCANON_AI_PROVIDER` | `anthropic` \| `openai` \| `gemini` to enable; unset / `none` to disable |
+| `WEBCANON_AI_MODEL` | model id (per-provider default if unset) |
+| provider API key | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) |
 
-Install the optional extra:
-
-```bash
-pip install "webcanon[ai]"
-```
+| Provider | `WEBCANON_AI_PROVIDER` | Extra | Default model | Resolver class |
+| --- | --- | --- | --- | --- |
+| Anthropic (Claude) | `anthropic` | `pip install "webcanon[ai]"` | `claude-opus-4-8` | `AnthropicAiResolver` |
+| OpenAI | `openai` | `pip install "webcanon[openai]"` | `gpt-5` | `OpenAiAiResolver` |
+| Google Gemini | `gemini` | `pip install "webcanon[gemini]"` | `gemini-2.5-pro` | `GeminiAiResolver` |
 
 CLI — `--ai` uses the configured provider automatically (or the rule engine if
 none is set):
 
 ```bash
-export WEBCANON_AI_PROVIDER=anthropic
-export ANTHROPIC_API_KEY=sk-ant-...
+export WEBCANON_AI_PROVIDER=openai          # or anthropic / gemini
+export OPENAI_API_KEY=sk-...
+# optional: export WEBCANON_AI_MODEL=gpt-4o
 webcanon fetch https://example.com/docs/api --ai
 ```
 

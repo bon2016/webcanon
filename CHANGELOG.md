@@ -8,12 +8,16 @@ breaking changes).
 ## [0.4.0] - 2026-06-16
 
 ### Added
-- **Built-in AI resolver, configured via environment variables.**
-  `webcanon.ai.AnthropicAiResolver` reasons over the URL + parsed `llms.txt` +
-  robots verdict using Claude (default `claude-opus-4-8`) and returns a URL
-  read-through plus safe headers. `ai_resolver_from_env()` reads
-  `WEBCANON_AI_PROVIDER` / `WEBCANON_AI_MODEL` / `ANTHROPIC_API_KEY` and returns
-  a resolver or `None`. Optional extra: `pip install "webcanon[ai]"`.
+- **Built-in AI resolvers for three providers, configured via environment
+  variables.** `AnthropicAiResolver` (Claude, default `claude-opus-4-8`),
+  `OpenAiAiResolver` (default `gpt-5`), and `GeminiAiResolver`
+  (default `gemini-2.5-pro`) each reason over the URL + parsed `llms.txt` +
+  robots verdict and return a URL read-through plus safe headers.
+  `ai_resolver_from_env()` reads `WEBCANON_AI_PROVIDER`
+  (`anthropic`/`openai`/`gemini`) / `WEBCANON_AI_MODEL` / the provider's API key
+  (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` or
+  `GOOGLE_API_KEY`) and returns a resolver or `None`. Optional extras:
+  `pip install "webcanon[ai]"` / `"[openai]"` / `"[gemini]"`.
 - **CLI `--ai` now uses the configured AI provider** when
   `WEBCANON_AI_PROVIDER` is set, falling back to the built-in rule engine
   otherwise.

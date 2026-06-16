@@ -50,11 +50,16 @@ _EPILOG = textwrap.dedent(
       an LLM choose the URL and request headers instead, configure a provider via
       environment variables:
 
-        WEBCANON_AI_PROVIDER   'anthropic' to enable; unset/'none' to disable
-        WEBCANON_AI_MODEL      model id (default: claude-opus-4-8)
-        ANTHROPIC_API_KEY      API key for the 'anthropic' provider
+        WEBCANON_AI_PROVIDER   anthropic | openai | gemini  (unset/'none' = off)
+        WEBCANON_AI_MODEL      model id (per-provider default if unset)
+        <provider key>         ANTHROPIC_API_KEY / OPENAI_API_KEY /
+                               GEMINI_API_KEY (or GOOGLE_API_KEY)
 
-      Requires the optional extra:  pip install "webcanon[ai]"
+      Install the matching extra:
+        pip install "webcanon[ai]"      # anthropic (Claude)
+        pip install "webcanon[openai]"  # openai
+        pip install "webcanon[gemini]"  # google gemini
+
       The AI can only *guide* retrieval: its chosen URL is re-checked against
       robots.txt and the SSRF guard, and only safe headers (Accept, ...) are sent.
 

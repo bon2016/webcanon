@@ -59,12 +59,12 @@ pip install "webcanon[headless]"
 python -m playwright install chromium
 ```
 
-For AI-driven `llms.txt` resolution (Claude, optional):
+For AI-driven `llms.txt` resolution (Anthropic / OpenAI / Gemini, optional):
 
 ```bash
-pip install "webcanon[ai]"
-export WEBCANON_AI_PROVIDER=anthropic
-export ANTHROPIC_API_KEY=sk-ant-...
+pip install "webcanon[ai]"       # anthropic (Claude); or [openai] / [gemini]
+export WEBCANON_AI_PROVIDER=anthropic    # or: openai | gemini
+export ANTHROPIC_API_KEY=sk-ant-...      # provider key: ANTHROPIC/OPENAI/GEMINI_API_KEY
 webcanon fetch https://example.com/docs/api --ai
 ```
 

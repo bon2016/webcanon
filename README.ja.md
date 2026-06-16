@@ -54,12 +54,12 @@ pip install "webcanon[headless]"
 python -m playwright install chromium
 ```
 
-AI による `llms.txt` 解決向け（Claude・任意）:
+AI による `llms.txt` 解決向け（Anthropic / OpenAI / Gemini・任意）:
 
 ```bash
-pip install "webcanon[ai]"
-export WEBCANON_AI_PROVIDER=anthropic
-export ANTHROPIC_API_KEY=sk-ant-...
+pip install "webcanon[ai]"       # anthropic (Claude)。または [openai] / [gemini]
+export WEBCANON_AI_PROVIDER=anthropic    # または: openai | gemini
+export ANTHROPIC_API_KEY=sk-ant-...      # プロバイダのキー: ANTHROPIC/OPENAI/GEMINI_API_KEY
 webcanon fetch https://example.com/docs/api --ai
 ```
 
