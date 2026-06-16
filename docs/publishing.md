@@ -6,9 +6,42 @@ layout: default
 
 # Publishing to PyPI
 
-This is the end-to-end procedure to publish `webcanon` as a Python package.
-Local build and metadata validation have already been verified in this repo;
-the remaining steps require **your** PyPI credentials.
+The **primary** release path is automated: pushing a `vX.Y.Z` tag (or publishing
+a GitHub Release) triggers `.github/workflows/publish.yml`, which builds, tests,
+and publishes to PyPI via **Trusted Publishing (OIDC)** — no API token is stored
+in the repo. The manual `twine` flow below is kept as a fallback.
+
+## Automated release (recommended)
+
+One-time setup on PyPI (per project):
+
+1. Create the project's **Trusted Publisher** at
+   <https://pypi.org/manage/account/publishing/> (or, for a brand-new name, add a
+   *pending* publisher). Use:
+   - Owner: `bon2016`  ·  Repository: `webcanon`
+   - Workflow: `publish.yml`  ·  Environment: `pypi`
+2. In the GitHub repo, create an **Environment** named `pypi`
+   (Settings → Environments) — optionally with required reviewers.
+
+Cut a release:
+
+```bash
+# 1. Bump version in pyproject.toml AND src/webcanon/__init__.py, update CHANGELOG.
+# 2. Merge to main, then tag:
+git tag -a v0.2.0 -m "webcanon 0.2.0"
+git push origin v0.2.0
+```
+
+The workflow then verifies the tag matches the package version, runs the test
+suite, builds, `twine check`s, and publishes. Watch it with
+`gh run watch` and confirm at <https://pypi.org/project/webcanon/>.
+
+---
+
+## Manual release (fallback)
+
+This requires **your** PyPI credentials and is only needed if the automated
+workflow is unavailable.
 
 ## 0. Prerequisites
 
@@ -31,8 +64,8 @@ uv build
 #   python -m build
 ```
 
-Produces `dist/webcanon-0.1.0-py3-none-any.whl` and
-`dist/webcanon-0.1.0.tar.gz`.
+Produces `dist/webcanon-0.2.0-py3-none-any.whl` and
+`dist/webcanon-0.2.0.tar.gz`.
 
 ## 2. Validate metadata
 
@@ -46,11 +79,11 @@ Both artifacts must report `PASSED`.
 ## 3. Smoke-test the wheel in a clean environment
 
 ```bash
-uv run --isolated --no-project --with ./dist/webcanon-0.1.0-py3-none-any.whl \
+uv run --isolated --no-project --with ./dist/webcanon-0.2.0-py3-none-any.whl \
   webcanon --version
 ```
 
-Should print `webcanon 0.1.0`.
+Should print `webcanon 0.2.0`.
 
 ## 4. Upload to TestPyPI (rehearsal)
 
@@ -90,8 +123,8 @@ pip install webcanon
 ## 6. Tag the release
 
 ```bash
-git tag -a v0.1.0 -m "webcanon 0.1.0"
-git push origin v0.1.0
+git tag -a v0.2.0 -m "webcanon 0.2.0"
+git push origin v0.2.0
 ```
 
 ## Credential storage (recommended)
