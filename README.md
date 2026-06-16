@@ -145,6 +145,23 @@ flags take precedence):
 - Unset / `none` provider disables AI (falls back to the built-in rule engine).
 - The API key always comes from the environment variable in the table above.
 
+### Representative models
+
+Any model the provider offers works — WebCanon passes the id straight through.
+**Bold** is the default; see [`docs/ai-models.md`](docs/ai-models.md) for the
+full list and guidance.
+
+| Provider | Common model ids |
+| --- | --- |
+| Anthropic | **`claude-opus-4-8`**, `claude-fable-5`, `claude-sonnet-4-6`, `claude-haiku-4-5` |
+| OpenAI | **`gpt-5`**, `gpt-5-mini`, `gpt-4o`, `gpt-4o-mini` |
+| Gemini | **`gemini-2.5-pro`**, `gemini-2.5-flash`, `gemini-2.5-flash-lite` |
+
+For this task (a small `llms.txt` decision), a fast/cheap model is usually
+plenty — e.g. `gpt-4o-mini`, `gemini-2.5-flash`, or `claude-haiku-4-5`. An
+unknown/retired id makes the resolver fall back to the rule engine, so retrieval
+never fails because of the model string.
+
 ```bash
 # CLI flags (provider + model on the command line)
 export OPENAI_API_KEY=sk-...

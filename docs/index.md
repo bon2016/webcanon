@@ -55,6 +55,7 @@ print(result.provenance.source_hash)   # sha256 of the source body
 | [llms.txt resolution](llms-resolution.md) | `llms.txt` parsing & URL resolution |
 | [Extraction quality](extraction-quality.md) | HTML→Markdown extraction & quality scoring |
 | [Customization](customization.md) | Injectable fetcher / extractor / AI resolver hooks |
+| [AI models](ai-models.md) | Supported model strings per provider (Anthropic / OpenAI / Gemini) |
 | [Security](security.md) | SSRF guard, prompt-injection firewall, provenance |
 | [AI framework affinity](ai-framework-affinity.md) | Fit with LangChain/LlamaIndex/MCP |
 | [Branching & commits](branching.md) | Branch model, Conventional Commits, versioning |

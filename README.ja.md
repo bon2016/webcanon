@@ -138,6 +138,23 @@ WebCanon は3つのプロバイダ向けの組み込み AI リゾルバを同梱
 - 未設定 / `none` で無効（組み込みルールエンジンにフォールバック）。
 - API キーは常に上表の環境変数から読み込まれます。
 
+### 代表的なモデル
+
+各プロバイダが提供するモデルはそのまま指定できます（WebCanon はモデル ID を
+そのまま渡します）。**太字**が既定。全一覧と指針は
+[`docs/ai-models.md`](docs/ai-models.md) を参照してください。
+
+| プロバイダ | 代表的なモデル ID |
+| --- | --- |
+| Anthropic | **`claude-opus-4-8`**, `claude-fable-5`, `claude-sonnet-4-6`, `claude-haiku-4-5` |
+| OpenAI | **`gpt-5`**, `gpt-5-mini`, `gpt-4o`, `gpt-4o-mini` |
+| Gemini | **`gemini-2.5-pro`**, `gemini-2.5-flash`, `gemini-2.5-flash-lite` |
+
+本ユースケース（`llms.txt` の小さな判断）では高速・低コストなモデルで十分な
+ことが多いです（例: `gpt-4o-mini` / `gemini-2.5-flash` / `claude-haiku-4-5`）。
+不正・廃止済みの ID を指定した場合はルールエンジンにフォールバックするため、
+モデル文字列が原因で取得が失敗することはありません。
+
 ```bash
 # コマンドライン引数（プロバイダ・モデルを引数で指定）
 export OPENAI_API_KEY=sk-...
