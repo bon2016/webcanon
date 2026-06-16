@@ -44,6 +44,20 @@ WebCanon's responsibilities:
   common injection carrier.
 - Never fire tool calls from page content.
 
+### AI resolver boundary
+
+The injectable `ai_resolver` ([customization.md](customization.md)) is also
+treated as untrusted. Its `AiHint` can *suggest* a fetch target and a few safe
+headers, but:
+
+- the chosen URL is re-evaluated against **its own origin's** `robots.txt`
+  (cross-origin hints load that host's robots), and disallowed hints are dropped
+  in full;
+- injected headers are restricted to a safe allowlist and dropped on
+  cross-origin redirects, so an `ai_resolver` cannot smuggle `Authorization` /
+  `Cookie` headers to another host;
+- the SSRF guard applies to every URL the resolver picks.
+
 Callers integrating WebCanon into an LLM **must** keep retrieved content in a
 clearly separated channel from the system/developer prompt.
 

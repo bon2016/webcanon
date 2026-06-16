@@ -21,7 +21,8 @@ import httpx
 from .config import RetrievalConfig
 from .errors import FetchError, PolicyError, WebCanonError
 from .extract import extract_html
-from .fetch import FetchResponse, fetch
+from .fetch import FetchResponse, fetch, sanitize_request_headers
+from .hooks import AiContext, AiResolver, Extractor, Fetcher
 from .llms import LlmsManifest, parse_llms, resolve_candidates
 from .provenance import sha256_hex
 from .robots import RobotsPolicy, RobotsVerdict, evaluate_robots, parse_robots
@@ -54,6 +55,17 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _callable_name(fn: object) -> str:
+    """Best-effort stable identity for a custom extractor callable."""
+
+    for attr in ("name", "__qualname__", "__name__"):
+        value = getattr(fn, attr, None)
+        if isinstance(value, str) and value:
+            module = getattr(fn, "__module__", None)
+            return f"{module}.{value}" if module else value
+    return type(fn).__name__
+
+
 class WebCanon:
     """Policy-aware retrieval client."""
 
@@ -65,16 +77,47 @@ class WebCanon:
     ) -> None:
         self.config = config or RetrievalConfig()
         self._client = client
+        # Resolve customization hooks (fall back to built-ins).
+        self._fetcher: Fetcher = self.config.fetcher or self._default_fetcher
+        self._extractor: Extractor = self.config.extractor or extract_html
+        self._ai_resolver: Optional[AiResolver] = self.config.ai_resolver
+        self._extractor_name = (
+            "webcanon.basic_html"
+            if self.config.extractor is None
+            else _callable_name(self.config.extractor)
+        )
+
+    # -- default hooks ---------------------------------------------------
+    def _default_fetcher(
+        self,
+        url: str,
+        *,
+        config,
+        user_agent,
+        headers: Optional[dict[str, str]] = None,
+    ) -> FetchResponse:
+        return fetch(
+            url,
+            config=config,
+            user_agent=user_agent,
+            client=self._client,
+            headers=headers,
+        )
+
+    def _do_fetch(
+        self, url: str, *, headers: Optional[dict[str, str]] = None
+    ) -> FetchResponse:
+        return self._fetcher(
+            url,
+            config=self.config.fetch,
+            user_agent=self.config.user_agent,
+            headers=headers,
+        )
 
     # -- manifest fetching ----------------------------------------------
     def _fetch_text(self, url: str) -> Optional[FetchResponse]:
         try:
-            return fetch(
-                url,
-                config=self.config.fetch,
-                user_agent=self.config.user_agent,
-                client=self._client,
-            )
+            return self._do_fetch(url)
         except WebCanonError:
             return None
 
@@ -161,6 +204,136 @@ class WebCanon:
                 f"{decision.verdict} ({decision.reason})"
             )
 
+    # -- AI / llms.txt resolution ---------------------------------------
+    def _candidate_allowed(
+        self,
+        url: str,
+        *,
+        same_origin_policy: RobotsPolicy,
+        same_origin_verdict: RobotsVerdict,
+        request_origin: str,
+    ) -> bool:
+        """Whether ``url`` is allowed by the *correct* origin's robots.
+
+        For same-origin candidates this reuses the already-loaded policy. For a
+        cross-origin candidate (e.g. an ``ai_resolver`` or ``llms.txt`` hint to
+        another host) it loads and evaluates that host's ``robots.txt`` so a
+        hint can never bypass the target site's rules.
+        """
+
+        if origin_of(url) == request_origin:
+            policy, verdict = same_origin_policy, same_origin_verdict
+        else:
+            policy, _robots_url, verdict = self._load_robots(origin_of(url))
+        decision = self._robots_decision(policy, verdict, url)
+        return decision.recommendation in ("recommended", "allowed_but_warn")
+
+    def _resolve_ai_target(
+        self,
+        *,
+        requested: str,
+        origin: str,
+        policy: RobotsPolicy,
+        transport_verdict: RobotsVerdict,
+        llms_manifest: Optional[LlmsManifest],
+        llms_url: Optional[str],
+    ) -> tuple[str, str, LlmsDecision, dict[str, str]]:
+        """Pick an LLM-friendly fetch target.
+
+        If an ``ai_resolver`` hook is configured, hand it the URL + parsed
+        ``llms.txt`` + robots recommendation and let the AI decide the URL
+        read-through and any special request headers. Otherwise fall back to
+        the built-in rule-based resolver. The chosen URL is always re-checked
+        against robots before use.
+        """
+
+        strategy = self.config.llms.strategy
+
+        # 1) Injected AI resolver path.
+        if self._ai_resolver is not None:
+            base_decision = self._robots_decision(policy, transport_verdict, requested)
+            hint = self._ai_resolver(
+                AiContext(
+                    requested_url=requested,
+                    origin=origin,
+                    llms_manifest=llms_manifest,
+                    llms_url=llms_url,
+                    robots_recommendation=base_decision.recommendation,
+                    robots_verdict=base_decision.verdict,
+                )
+            )
+            if hint is not None:
+                target = hint.url or requested
+                target_allowed = target == requested or self._candidate_allowed(
+                    target,
+                    same_origin_policy=policy,
+                    same_origin_verdict=transport_verdict,
+                    request_origin=origin,
+                )
+                if not target_allowed:
+                    # robots wins: the entire hint (URL + headers + reason) is
+                    # dropped and we continue with normal resolution.
+                    if strategy == "force":
+                        raise PolicyError(
+                            f"ai_resolver chose {target} but robots disallows it"
+                        )
+                else:
+                    headers = sanitize_request_headers(hint.headers)
+                    selected_by = (
+                        "llms_txt" if (target != requested or headers) else "direct"
+                    )
+                    return (
+                        target,
+                        selected_by,
+                        LlmsDecision(
+                            strategy=strategy,
+                            selected_url=target,
+                            reason=hint.reason or "ai_resolver hint",
+                            resolved_by="ai",
+                            applied_headers=dict(headers),
+                        ),
+                        dict(headers),
+                    )
+            if strategy == "force":
+                raise PolicyError("llms strategy is 'force' but ai_resolver gave no usable hint")
+
+        # 2) Built-in rule-based resolver path.
+        chosen: Optional[tuple[str, str]] = None
+        for candidate, reason in resolve_candidates(requested, llms_manifest):
+            if self._candidate_allowed(
+                candidate,
+                same_origin_policy=policy,
+                same_origin_verdict=transport_verdict,
+                request_origin=origin,
+            ):
+                chosen = (candidate, reason)
+                break
+        if chosen and chosen[0] != requested:
+            return (
+                chosen[0],
+                "llms_txt",
+                LlmsDecision(
+                    strategy=strategy,
+                    selected_url=chosen[0],
+                    reason=chosen[1],
+                    resolved_by="rule_based",
+                ),
+                {},
+            )
+        if strategy == "force" and not chosen:
+            raise PolicyError("llms strategy is 'force' but no allowed candidate found")
+        return (
+            requested,
+            "direct",
+            LlmsDecision(
+                strategy=strategy,
+                selected_url=requested,
+                reason="no llms-preferred candidate; using original",
+                resolved_by="rule_based",
+            ),
+            {},
+        )
+
     # -- public API ------------------------------------------------------
     def retrieve_url(self, url: str, *, ai_reasoning: bool = False) -> RetrievalResult:
         """Retrieve ``url`` and return a provenance-bearing result."""
@@ -174,48 +347,36 @@ class WebCanon:
         if ai_reasoning and self.config.llms.strategy != "disabled":
             llms_manifest, llms_url = self._load_llms(origin)
 
-        # Decide the fetch target.
+        # Decide the fetch target (and any AI-requested headers).
         final_url = requested
         selected_by = "direct"
         llms_decision: Optional[LlmsDecision] = None
+        extra_headers: dict[str, str] = {}
 
         if ai_reasoning and self.config.llms.strategy != "disabled":
-            chosen: Optional[tuple[str, str]] = None
-            for candidate, reason in resolve_candidates(requested, llms_manifest):
-                cand_decision = self._robots_decision(policy, transport_verdict, candidate)
-                if cand_decision.recommendation in ("recommended", "allowed_but_warn"):
-                    chosen = (candidate, reason)
-                    break
-            if chosen and chosen[0] != requested:
-                final_url = chosen[0]
-                selected_by = "llms_txt"
-                llms_decision = LlmsDecision(
-                    strategy=self.config.llms.strategy,
-                    selected_url=final_url,
-                    reason=chosen[1],
-                )
-            elif self.config.llms.strategy == "force" and not chosen:
-                raise PolicyError("llms strategy is 'force' but no allowed candidate found")
-            else:
-                llms_decision = LlmsDecision(
-                    strategy=self.config.llms.strategy,
-                    selected_url=requested,
-                    reason="no llms-preferred candidate; using original",
-                )
+            final_url, selected_by, llms_decision, extra_headers = self._resolve_ai_target(
+                requested=requested,
+                origin=origin,
+                policy=policy,
+                transport_verdict=transport_verdict,
+                llms_manifest=llms_manifest,
+                llms_url=llms_url,
+            )
 
-        robots_decision = self._robots_decision(policy, transport_verdict, final_url)
+        # Evaluate robots against the final URL's own origin (it may have been
+        # rerouted cross-origin by llms.txt or the ai_resolver).
+        if origin_of(final_url) == origin:
+            final_policy, final_verdict = policy, transport_verdict
+        else:
+            final_policy, robots_url, final_verdict = self._load_robots(origin_of(final_url))
+        robots_decision = self._robots_decision(final_policy, final_verdict, final_url)
         self._enforce(robots_decision)
 
-        response = fetch(
-            final_url,
-            config=self.config.fetch,
-            user_agent=self.config.user_agent,
-            client=self._client,
-        )
+        response = self._do_fetch(final_url, headers=extra_headers or None)
         if response.status >= 400:
             raise FetchError(f"fetch returned HTTP {response.status} for {final_url}")
 
-        extracted = extract_html(response.body, content_type=response.content_type)
+        extracted = self._extractor(response.body, content_type=response.content_type)
 
         return RetrievalResult(
             request=RequestInfo(input=url, mode="url", timestamp=_now()),
@@ -235,7 +396,7 @@ class WebCanon:
                 last_modified=response.last_modified,
             ),
             extraction=ExtractionInfo(
-                extractor="webcanon.basic_html",
+                extractor=self._extractor_name,
                 quality_score=extracted.quality_score,
                 warnings=extracted.warnings,
             ),

@@ -30,6 +30,13 @@ from .errors import (
     SsrfError,
     WebCanonError,
 )
+from .hooks import (
+    AiContext,
+    AiHint,
+    AiResolver,
+    Extractor,
+    Fetcher,
+)
 from .robots import RobotsPolicy, RobotsVerdict, evaluate_robots, parse_robots
 from .schema import RETRIEVE_TOOL, as_anthropic_tool, as_openai_tool
 from .types import RetrievalResult
@@ -43,6 +50,11 @@ __all__ = [
     "LlmsConfig",
     "ExtractionConfig",
     "UserAgentConfig",
+    "AiContext",
+    "AiHint",
+    "AiResolver",
+    "Fetcher",
+    "Extractor",
     "RetrievalResult",
     "RobotsPolicy",
     "RobotsVerdict",
