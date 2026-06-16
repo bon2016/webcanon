@@ -3,10 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:
     from .hooks import AiResolver, Extractor, Fetcher
+
+
+def _default_version() -> str:
+    """Resolve the installed package version (falls back when not installed)."""
+
+    try:
+        return _pkg_version("webcanon")
+    except PackageNotFoundError:  # e.g. running from a source checkout
+        return "0.2.0"
 
 RobotsMode = Literal["respect", "report_only", "ignore"]
 OnUnavailable = Literal["allow_with_warning", "deny"]
@@ -24,7 +34,7 @@ class UserAgentConfig:
     """
 
     product: str = "WebCanon"
-    version: str = "0.1.0"
+    version: str = field(default_factory=_default_version)
     contact: str | None = None
 
     @property
