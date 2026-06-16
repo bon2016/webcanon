@@ -7,10 +7,12 @@ import pytest
 
 from webcanon.ai import (
     DEFAULT_MODELS,
+    SUPPORTED_PROVIDERS,
     AnthropicAiResolver,
     GeminiAiResolver,
     OpenAiAiResolver,
     ai_resolver_from_env,
+    build_ai_resolver,
 )
 from webcanon.hooks import AiContext, AiHint
 from webcanon.llms import LlmsLink, LlmsManifest
@@ -75,6 +77,34 @@ def test_env_factory_unknown_provider(monkeypatch):
     monkeypatch.setenv("WEBCANON_AI_PROVIDER", "bogus")
     with pytest.raises(ValueError):
         ai_resolver_from_env()
+
+
+# -- build_ai_resolver (explicit provider/model) ------------------------
+def test_build_disabled_values():
+    assert build_ai_resolver("") is None
+    assert build_ai_resolver("none") is None
+    assert build_ai_resolver("disabled") is None
+
+
+def test_build_each_provider_default_model():
+    assert isinstance(build_ai_resolver("anthropic"), AnthropicAiResolver)
+    assert build_ai_resolver("openai").model == DEFAULT_MODELS["openai"]
+    assert build_ai_resolver("gemini").model == DEFAULT_MODELS["gemini"]
+
+
+def test_build_model_override():
+    r = build_ai_resolver("openai", "gpt-4o")
+    assert isinstance(r, OpenAiAiResolver)
+    assert r.model == "gpt-4o"
+
+
+def test_build_unknown_provider():
+    with pytest.raises(ValueError):
+        build_ai_resolver("bogus")
+
+
+def test_supported_providers_constant():
+    assert set(SUPPORTED_PROVIDERS) == {"anthropic", "openai", "gemini"}
 
 
 # -- resolver behaviour -------------------------------------------------
