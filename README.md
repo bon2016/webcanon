@@ -63,10 +63,10 @@ For AI-driven `llms.txt` resolution (Anthropic / OpenAI / Gemini, optional):
 
 ```bash
 pip install "webcanon[ai]"       # anthropic (Claude); or [openai] / [gemini]
-export WEBCANON_AI_PROVIDER=anthropic    # or: openai | gemini
-export ANTHROPIC_API_KEY=sk-ant-...      # provider key: ANTHROPIC/OPENAI/GEMINI_API_KEY
-webcanon fetch https://example.com/docs/api --ai
 ```
+
+See [AI providers & API keys](#ai-providers--api-keys) below for how to enable a
+provider.
 
 From source:
 
@@ -120,6 +120,53 @@ result = client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
 
 robots.txt always wins: an `AiHint` that points at a disallowed URL is ignored.
 See [`docs/customization.md`](docs/customization.md).
+
+## AI providers & API keys
+
+WebCanon ships built-in AI resolvers for three providers. Enable one from the
+environment — the CLI (`--ai`) and the library (`ai_resolver_from_env()`) share
+the same switch:
+
+| Provider | `WEBCANON_AI_PROVIDER` | **API key env var** | Install extra | Default model | Get a key |
+| --- | --- | --- | --- | --- | --- |
+| Anthropic (Claude) | `anthropic` | `ANTHROPIC_API_KEY` | `pip install "webcanon[ai]"` | `claude-opus-4-8` | <https://console.anthropic.com/> |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `pip install "webcanon[openai]"` | `gpt-5` | <https://platform.openai.com/api-keys> |
+| Google Gemini | `gemini` | `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) | `pip install "webcanon[gemini]"` | `gemini-2.5-pro` | <https://aistudio.google.com/apikey> |
+
+Common settings:
+
+- `WEBCANON_AI_PROVIDER` — `anthropic` \| `openai` \| `gemini` to enable; unset
+  or `none` to disable (falls back to the built-in rule engine).
+- `WEBCANON_AI_MODEL` — override the model id (defaults to the per-provider model
+  above).
+
+```bash
+# OpenAI
+export WEBCANON_AI_PROVIDER=openai
+export OPENAI_API_KEY=sk-...
+# optional: export WEBCANON_AI_MODEL=gpt-4o
+webcanon fetch https://example.com/docs/api --ai
+
+# Google Gemini
+export WEBCANON_AI_PROVIDER=gemini
+export GEMINI_API_KEY=...           # GOOGLE_API_KEY also works
+webcanon fetch https://example.com/docs/api --ai
+
+# Anthropic (Claude)
+export WEBCANON_AI_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+webcanon fetch https://example.com/docs/api --ai
+```
+
+Notes:
+
+- The AI only *guides* retrieval: its chosen URL is re-checked against
+  `robots.txt` and the SSRF guard, and only safe content-negotiation headers
+  (`Accept`, …) are sent.
+- If the provider's SDK isn't installed or the API errors, the resolver declines
+  and WebCanon falls back to the rule engine — retrieval never fails because of AI.
+- OpenAI-compatible endpoints: pass `OpenAiAiResolver(base_url=...)` (or set
+  `OPENAI_BASE_URL`) when constructing the resolver in code.
 
 ## CLI
 

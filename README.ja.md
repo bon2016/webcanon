@@ -58,10 +58,9 @@ AI による `llms.txt` 解決向け（Anthropic / OpenAI / Gemini・任意）:
 
 ```bash
 pip install "webcanon[ai]"       # anthropic (Claude)。または [openai] / [gemini]
-export WEBCANON_AI_PROVIDER=anthropic    # または: openai | gemini
-export ANTHROPIC_API_KEY=sk-ant-...      # プロバイダのキー: ANTHROPIC/OPENAI/GEMINI_API_KEY
-webcanon fetch https://example.com/docs/api --ai
 ```
+
+有効化の方法は下記 [AI プロバイダと API キー](#ai-プロバイダと-api-キー) を参照してください。
 
 ソースから:
 
@@ -115,6 +114,50 @@ result = client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
 robots.txt が常に優先されます。`AiHint` が Disallow の URL を指した場合、その
 ヒントは（URL もヘッダーも）破棄され、通常の解決が継続されます。
 詳細は [`docs/customization.md`](docs/customization.md)（[日本語版サイト](https://bon2016.github.io/webcanon/)）を参照してください。
+
+## AI プロバイダと API キー
+
+WebCanon は3つのプロバイダ向けの組み込み AI リゾルバを同梱しています。環境変数で
+1つを有効化します（CLI の `--ai` とライブラリの `ai_resolver_from_env()` で共通）:
+
+| プロバイダ | `WEBCANON_AI_PROVIDER` | **API キーの環境変数** | インストール extra | 既定モデル | キー取得 |
+| --- | --- | --- | --- | --- | --- |
+| Anthropic (Claude) | `anthropic` | `ANTHROPIC_API_KEY` | `pip install "webcanon[ai]"` | `claude-opus-4-8` | <https://console.anthropic.com/> |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `pip install "webcanon[openai]"` | `gpt-5` | <https://platform.openai.com/api-keys> |
+| Google Gemini | `gemini` | `GEMINI_API_KEY`（または `GOOGLE_API_KEY`） | `pip install "webcanon[gemini]"` | `gemini-2.5-pro` | <https://aistudio.google.com/apikey> |
+
+共通設定:
+
+- `WEBCANON_AI_PROVIDER` — `anthropic` \| `openai` \| `gemini` で有効化。未設定 /
+  `none` で無効（組み込みルールエンジンにフォールバック）。
+- `WEBCANON_AI_MODEL` — モデル ID を上書き（未指定なら上表の既定値）。
+
+```bash
+# OpenAI
+export WEBCANON_AI_PROVIDER=openai
+export OPENAI_API_KEY=sk-...
+# 任意: export WEBCANON_AI_MODEL=gpt-4o
+webcanon fetch https://example.com/docs/api --ai
+
+# Google Gemini
+export WEBCANON_AI_PROVIDER=gemini
+export GEMINI_API_KEY=...           # GOOGLE_API_KEY でも可
+webcanon fetch https://example.com/docs/api --ai
+
+# Anthropic (Claude)
+export WEBCANON_AI_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+webcanon fetch https://example.com/docs/api --ai
+```
+
+注意:
+
+- AI は取得を*ガイド*するだけです。選んだ URL は `robots.txt` と SSRF ガードで
+  再検証され、安全なヘッダー（`Accept` など）のみ送信されます。
+- プロバイダの SDK 未インストールや API エラー時は、リゾルバは何もせずルール
+  エンジンにフォールバックします（AI が原因で取得が失敗することはありません）。
+- OpenAI 互換エンドポイント: コードで `OpenAiAiResolver(base_url=...)` を渡す
+  （または `OPENAI_BASE_URL` を設定）。
 
 ## CLI
 
