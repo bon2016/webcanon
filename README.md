@@ -59,6 +59,15 @@ pip install "webcanon[headless]"
 python -m playwright install chromium
 ```
 
+For AI-driven `llms.txt` resolution (Claude, optional):
+
+```bash
+pip install "webcanon[ai]"
+export WEBCANON_AI_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+webcanon fetch https://example.com/docs/api --ai
+```
+
 From source:
 
 ```bash

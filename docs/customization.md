@@ -57,7 +57,52 @@ result.selected_source.final_url    # the URL actually fetched
 If no `ai_resolver` is configured, WebCanon falls back to the built-in
 rule-based resolver (exact `llms.txt` match → `.md` variant → original URL).
 
-## Writing an `ai_resolver`
+## Built-in AI resolver (Claude, via environment variables)
+
+WebCanon ships an `ai_resolver` backed by Claude. Enable it from the
+environment so the CLI and the library share one switch:
+
+| Variable | Meaning |
+| --- | --- |
+| `WEBCANON_AI_PROVIDER` | `anthropic` to enable; unset / `none` to disable |
+| `WEBCANON_AI_MODEL` | model id (default `claude-opus-4-8`) |
+| `ANTHROPIC_API_KEY` | API key for the `anthropic` provider |
+
+Install the optional extra:
+
+```bash
+pip install "webcanon[ai]"
+```
+
+CLI — `--ai` uses the configured provider automatically (or the rule engine if
+none is set):
+
+```bash
+export WEBCANON_AI_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+webcanon fetch https://example.com/docs/api --ai
+```
+
+Library — `ai_resolver_from_env()` returns the configured resolver or `None`:
+
+```python
+from webcanon import WebCanon
+from webcanon.ai import ai_resolver_from_env
+from webcanon.config import RetrievalConfig
+
+client = WebCanon(RetrievalConfig(ai_resolver=ai_resolver_from_env()))
+result = client.retrieve_url("https://example.com/docs/api", ai_reasoning=True)
+print(result.policy.llms.resolved_by)  # "ai" when the model rerouted
+```
+
+The model is handed the URL + parsed `llms.txt` + robots verdict and returns a
+URL read-through plus safe content-negotiation headers. Its choice is **never
+trusted**: the URL is re-evaluated against `robots.txt` and the SSRF guard, and
+only allowlisted headers are sent (see [security.md](security.md)). If the
+`anthropic` package isn't installed or the API errors, the resolver declines
+and WebCanon falls back to the rule engine.
+
+## Writing a custom `ai_resolver`
 
 ```python
 from typing import Optional

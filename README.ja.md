@@ -54,6 +54,15 @@ pip install "webcanon[headless]"
 python -m playwright install chromium
 ```
 
+AI による `llms.txt` 解決向け（Claude・任意）:
+
+```bash
+pip install "webcanon[ai]"
+export WEBCANON_AI_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+webcanon fetch https://example.com/docs/api --ai
+```
+
 ソースから:
 
 ```bash

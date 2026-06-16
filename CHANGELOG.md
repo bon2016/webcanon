@@ -5,6 +5,26 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/) (during `0.x`, MINOR may include
 breaking changes).
 
+## [0.4.0] - 2026-06-16
+
+### Added
+- **Built-in AI resolver, configured via environment variables.**
+  `webcanon.ai.AnthropicAiResolver` reasons over the URL + parsed `llms.txt` +
+  robots verdict using Claude (default `claude-opus-4-8`) and returns a URL
+  read-through plus safe headers. `ai_resolver_from_env()` reads
+  `WEBCANON_AI_PROVIDER` / `WEBCANON_AI_MODEL` / `ANTHROPIC_API_KEY` and returns
+  a resolver or `None`. Optional extra: `pip install "webcanon[ai]"`.
+- **CLI `--ai` now uses the configured AI provider** when
+  `WEBCANON_AI_PROVIDER` is set, falling back to the built-in rule engine
+  otherwise.
+- **Much richer CLI help**: descriptions, per-option explanations, an examples
+  section, an AI/env-var reference, and notes (scope, SSRF, User-Agent).
+
+### Security
+- The AI's chosen URL is re-evaluated against `robots.txt` and the SSRF guard;
+  only allowlisted headers are forwarded. A missing `anthropic` package or an
+  API error makes the resolver decline rather than fail retrieval.
+
 ## [0.3.0] - 2026-06-16
 
 ### Added
@@ -62,6 +82,7 @@ breaking changes).
 - Provenance-bearing `RetrievalResult` (Retrieval Bill of Materials).
 - CLI: `webcanon fetch` and `webcanon inspect`.
 
+[0.4.0]: https://github.com/bon2016/webcanon/releases/tag/v0.4.0
 [0.3.0]: https://github.com/bon2016/webcanon/releases/tag/v0.3.0
 [0.2.0]: https://github.com/bon2016/webcanon/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bon2016/webcanon/releases/tag/v0.1.0
