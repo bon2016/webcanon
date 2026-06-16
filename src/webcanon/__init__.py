@@ -38,10 +38,12 @@ from .hooks import (
     Fetcher,
 )
 from .ai import (
+    SUPPORTED_PROVIDERS,
     AnthropicAiResolver,
     GeminiAiResolver,
     OpenAiAiResolver,
     ai_resolver_from_env,
+    build_ai_resolver,
 )
 from .headless import PlaywrightFetcher
 from .robots import RobotsPolicy, RobotsVerdict, evaluate_robots, parse_robots
@@ -67,6 +69,8 @@ __all__ = [
     "OpenAiAiResolver",
     "GeminiAiResolver",
     "ai_resolver_from_env",
+    "build_ai_resolver",
+    "SUPPORTED_PROVIDERS",
     "RetrievalResult",
     "RobotsPolicy",
     "RobotsVerdict",

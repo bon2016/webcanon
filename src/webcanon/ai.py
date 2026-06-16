@@ -300,6 +300,34 @@ _RESOLVERS = {
 }
 
 
+# Providers that can be named on the CLI / in WEBCANON_AI_PROVIDER.
+SUPPORTED_PROVIDERS = tuple(_RESOLVERS)
+
+
+def build_ai_resolver(
+    provider: str, model: Optional[str] = None
+) -> Optional[object]:
+    """Construct an AI resolver by provider name (and optional model).
+
+    ``provider`` is one of :data:`SUPPORTED_PROVIDERS`, or ``""`` / ``none`` /
+    ``disabled`` to return ``None``. ``model`` defaults to the provider's entry
+    in :data:`DEFAULT_MODELS`. Raises :class:`ValueError` for an unknown
+    provider.
+    """
+
+    provider = (provider or "").strip().lower()
+    if provider in ("", "none", "disabled"):
+        return None
+    resolver_cls = _RESOLVERS.get(provider)
+    if resolver_cls is None:
+        supported = ", ".join(repr(p) for p in _RESOLVERS)
+        raise ValueError(
+            f"unknown AI provider: {provider!r} (supported: {supported})"
+        )
+    chosen = (model or "").strip() or DEFAULT_MODELS[provider]
+    return resolver_cls(model=chosen)
+
+
 def ai_resolver_from_env() -> Optional[object]:
     """Build an AI resolver from environment variables, or ``None``.
 
@@ -315,15 +343,7 @@ def ai_resolver_from_env() -> Optional[object]:
     ``RetrievalConfig(ai_resolver=ai_resolver_from_env())`` unconditionally.
     """
 
-    provider = os.environ.get("WEBCANON_AI_PROVIDER", "").strip().lower()
-    if provider in ("", "none", "disabled"):
-        return None
-    resolver_cls = _RESOLVERS.get(provider)
-    if resolver_cls is None:
-        supported = ", ".join(repr(p) for p in _RESOLVERS)
-        raise ValueError(
-            f"unknown WEBCANON_AI_PROVIDER: {provider!r} (supported: {supported})"
-        )
-    default_model = DEFAULT_MODELS[provider]
-    model = os.environ.get("WEBCANON_AI_MODEL", default_model).strip() or default_model
-    return resolver_cls(model=model)
+    return build_ai_resolver(
+        os.environ.get("WEBCANON_AI_PROVIDER", ""),
+        os.environ.get("WEBCANON_AI_MODEL"),
+    )
