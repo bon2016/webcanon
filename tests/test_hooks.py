@@ -20,11 +20,11 @@ def _mock_http(routes):
     return httpx.Client(transport=transport, follow_redirects=False)
 
 
-def test_injected_fetcher_is_used():
+def test_injected_fetcher_is_used_for_document_only():
     calls = []
 
     def my_fetcher(url, *, config, user_agent, headers=None):
-        calls.append((url, headers))
+        calls.append(url)
         return FetchResponse(
             url=url,
             final_url=url,
@@ -33,17 +33,24 @@ def test_injected_fetcher_is_used():
             body="<h1>injected</h1>",
         )
 
+    # Manifests (robots/llms) go through the built-in HTTP fetcher (mock client);
+    # only the main document goes through the custom fetcher.
+    def routes(req):
+        if req.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow:")
+        return httpx.Response(404)
+
     client = WebCanon(
         RetrievalConfig(
             fetcher=my_fetcher,
             fetch=FetchConfig(block_private_addresses=False),
-        )
+        ),
+        client=_mock_http(routes),
     )
     result = client.retrieve_url("https://example.com/page")
     assert "# injected" in result.document.markdown
-    # robots.txt + page both went through the custom fetcher.
-    assert any(u.endswith("/robots.txt") for u, _ in calls)
-    assert any(u.endswith("/page") for u, _ in calls)
+    # The custom fetcher saw ONLY the document, never the manifests.
+    assert calls == ["https://example.com/page"]
 
 
 def test_injected_extractor_is_used():
