@@ -337,8 +337,11 @@ class WebCanon:
                         ),
                         dict(headers),
                     )
-            if strategy == "force":
-                raise PolicyError("llms strategy is 'force' but ai_resolver gave no usable hint")
+            # No usable AI hint (declined, errored, or robots-dropped). Fall
+            # through to the rule-based resolver rather than failing here — a
+            # transient provider error must not break retrieval when an allowed
+            # rule-based candidate exists. The 'force' contract is still honoured
+            # below: it raises only if *no* allowed candidate is found at all.
 
         # 2) Built-in rule-based resolver path.
         chosen: Optional[tuple[str, str]] = None
