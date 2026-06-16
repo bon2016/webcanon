@@ -54,9 +54,10 @@ rule-based resolver (exact `llms.txt` match → `.md` variant → original URL).
 ## Writing an `ai_resolver`
 
 ```python
+from typing import Optional
 from webcanon import AiContext, AiHint
 
-def my_ai(ctx: AiContext) -> AiHint | None:
+def my_ai(ctx: AiContext) -> Optional[AiHint]:  # Optional keeps it 3.9-compatible
     # ctx.requested_url, ctx.origin
     # ctx.llms_manifest  -> parsed llms.txt (title/summary/links) or None
     # ctx.llms_url       -> the llms.txt URL (or None)

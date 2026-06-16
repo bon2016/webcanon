@@ -243,6 +243,29 @@ def test_unsafe_injected_headers_are_dropped():
     assert result.policy.llms.applied_headers == {"Accept": "text/markdown"}
 
 
+def test_injected_user_agent_cannot_override_configured_one():
+    seen = {}
+
+    def my_ai(ctx):
+        # Attempt to spoof the network identity away from robots' UA token.
+        return AiHint(headers={"User-Agent": "EvilBot/9", "Accept": "text/markdown"})
+
+    def routes(req):
+        if req.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow:")
+        if req.url.path == "/llms.txt":
+            return httpx.Response(404)
+        seen["ua"] = req.headers.get("User-Agent")
+        return httpx.Response(200, headers={"content-type": "text/html"}, text="<p>x</p>")
+
+    client = WebCanon(
+        RetrievalConfig(ai_resolver=my_ai, fetch=FetchConfig(block_private_addresses=False)),
+        client=_mock_http(routes),
+    )
+    client.retrieve_url("https://example.com/page", ai_reasoning=True)
+    assert seen["ua"].startswith("WebCanon/")  # configured UA, not the spoof
+
+
 def test_custom_extractor_name_is_reported_in_provenance():
     from webcanon.extract import ExtractedDocument
 
