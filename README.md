@@ -52,6 +52,13 @@ all provenance. WebCanon separates these into a single quality contract:
 pip install webcanon
 ```
 
+For JavaScript-rendered pages (headless browser, optional):
+
+```bash
+pip install "webcanon[headless]"
+python -m playwright install chromium
+```
+
 From source:
 
 ```bash

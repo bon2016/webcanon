@@ -118,3 +118,43 @@ def my_extractor(body, *, content_type) -> ExtractedDocument:
 
 A custom `fetcher` is responsible for honouring the SSRF guard and the transport
 limits in `config` (timeout, redirects, body size, content types).
+
+## Headless browser (JavaScript-rendered pages)
+
+For single-page apps and client-rendered content, use the built-in
+`PlaywrightFetcher`, which renders the page in a real headless browser and
+returns the post-JavaScript HTML. Playwright is an **optional** dependency:
+
+```bash
+pip install "webcanon[headless]"
+python -m playwright install chromium
+```
+
+```python
+from webcanon import WebCanon
+from webcanon.config import RetrievalConfig
+from webcanon.headless import PlaywrightFetcher
+
+client = WebCanon(RetrievalConfig(
+    fetcher=PlaywrightFetcher(
+        browser="chromium",        # or "firefox" / "webkit"
+        wait_until="networkidle",  # good default for SPAs
+        wait_selector="#app",      # optional: wait for a content container
+        extra_wait_ms=0,           # optional fixed delay
+    )
+))
+result = client.retrieve_url("https://example.com/spa")
+print(result.document.html)      # rendered HTML
+print(result.document.markdown)  # extracted from the rendered DOM
+```
+
+It enforces the SSRF guard for the target **and** the final (post-navigation)
+URL, and applies the `FetchConfig` timeout and body-size limits. If Playwright
+is not installed, it raises a clear `FetchError` telling you how to install it.
+
+## Raw HTML in the result
+
+Every `RetrievalResult` now carries the raw fetched source on
+`result.document.html` (alongside `markdown` and `text`), so you can re-extract,
+audit, or render the original. It is included in `to_dict()` but **not** in
+`to_document()` (the RAG/document shape stays lean).
