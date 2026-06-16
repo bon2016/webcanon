@@ -78,11 +78,23 @@ def my_ai(ctx: AiContext) -> AiHint | None:
 
 ### Policy is never overridden
 
-`robots.txt` is re-evaluated for whatever URL the AI chooses. If the AI points
-at a disallowed URL, the hint is dropped and WebCanon falls back to the
-requested URL (or raises `PolicyError` when `llms.strategy="force"`). The AI is
-untrusted: it can *guide* retrieval, not bypass policy. See
-[security.md](security.md) and [policy-model.md](policy-model.md).
+`robots.txt` is re-evaluated for whatever URL the AI chooses, **against that
+URL's own origin** — a cross-origin hint causes the target host's `robots.txt`
+to be loaded and evaluated, so a hint can never bypass another site's rules. If
+the chosen URL is disallowed, the **entire hint is dropped** (URL *and*
+headers) and WebCanon continues with normal resolution (or raises `PolicyError`
+when `llms.strategy="force"`). The AI is untrusted: it can *guide* retrieval,
+not bypass policy. See [security.md](security.md) and
+[policy-model.md](policy-model.md).
+
+### Injected headers are restricted
+
+Headers an `ai_resolver` (or custom caller) supplies are limited to a safe
+allowlist (`Accept`, `Accept-Language`, `Accept-Encoding`, `If-None-Match`,
+`If-Modified-Since`). Credential-like headers (`Authorization`, `Cookie`, …)
+are dropped, and **all injected headers are dropped on cross-origin redirects**
+so they cannot leak to another host. `User-Agent` is always sent from
+`UserAgentConfig`.
 
 ## Writing a `fetcher` / `extractor`
 
