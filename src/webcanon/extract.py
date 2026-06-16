@@ -20,6 +20,18 @@ _BLOCK_TAGS = {"p", "div", "section", "article", "ul", "ol", "li", "table", "tr"
 _HEADINGS = {"h1": "#", "h2": "##", "h3": "###", "h4": "####", "h5": "#####", "h6": "######"}
 
 
+def is_markdown_content_type(content_type: str) -> bool:
+    """Whether ``content_type`` denotes Markdown or plain text.
+
+    These bodies are treated as already-Markdown by :func:`extract_html` (no DOM
+    processing) and let the client decide whether to fetch the original HTML
+    separately.
+    """
+
+    ct = (content_type or "").lower()
+    return "markdown" in ct or ct.startswith("text/plain")
+
+
 @dataclass
 class ExtractedDocument:
     title: str | None
@@ -176,8 +188,7 @@ def extract_html(html: str, *, content_type: str = "text/html") -> ExtractedDocu
     returned mostly verbatim (no DOM processing).
     """
 
-    ct = content_type.lower()
-    if "markdown" in ct or ct.startswith("text/plain"):
+    if is_markdown_content_type(content_type):
         warnings: list[str] = []
         return ExtractedDocument(
             title=None,

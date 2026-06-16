@@ -20,7 +20,7 @@ import httpx
 
 from .config import RetrievalConfig
 from .errors import FetchError, PolicyError, WebCanonError
-from .extract import extract_html
+from .extract import extract_html, is_markdown_content_type
 from .fetch import FetchResponse, fetch, sanitize_request_headers
 from .hooks import AiContext, AiResolver, Extractor, Fetcher
 from .llms import LlmsManifest, parse_llms, resolve_candidates
@@ -115,6 +115,36 @@ class WebCanon:
             user_agent=self.config.user_agent,
             headers=headers,
         )
+
+    def _fetch_original_html(self, url: str) -> Optional[str]:
+        """Best-effort fetch of the original URL's HTML for ``document.html``.
+
+        Used when the resolver rerouted to a Markdown document: we still want
+        the original page's raw HTML available. This honours policy/safety like
+        any other fetch — if robots disallows the URL (in ``respect`` mode), or
+        the fetch errors, or the body isn't HTML, it returns ``None`` rather
+        than failing the overall retrieval (curl/httpx-like usability, while
+        staying robots-aware for governance-sensitive deployments).
+        """
+
+        policy, _robots_url, verdict = self._load_robots(origin_of(url))
+        decision = self._robots_decision(policy, verdict, url)
+        if (
+            self.config.robots.mode == "respect"
+            and decision.recommendation
+            not in ("recommended", "allowed_but_warn")
+        ):
+            return None
+        try:
+            resp = self._do_fetch(url)
+        except WebCanonError:
+            return None
+        if resp.status >= 400:
+            return None
+        if is_markdown_content_type(resp.content_type):
+            # The "original" is itself Markdown — no distinct HTML to capture.
+            return None
+        return resp.body
 
     # -- manifest fetching ----------------------------------------------
     def _fetch_text(self, url: str) -> Optional[FetchResponse]:
@@ -391,6 +421,19 @@ class WebCanon:
 
         extracted = self._extractor(response.body, content_type=response.content_type)
 
+        # document.html should hold raw HTML. When the resolver rerouted to a
+        # Markdown document, the fetched body *is* the Markdown — so fetch the
+        # originally-requested URL's HTML separately for document.html (subject
+        # to robots/SSRF; None if not retrievable). Otherwise the fetched body
+        # is the HTML.
+        if is_markdown_content_type(response.content_type) and final_url != requested:
+            html_body = self._fetch_original_html(requested)
+        elif is_markdown_content_type(response.content_type):
+            # Requested URL itself returned Markdown — no distinct HTML.
+            html_body = None
+        else:
+            html_body = response.body
+
         return RetrievalResult(
             request=RequestInfo(input=url, mode="url", timestamp=_now()),
             selected_source=SelectedSource(
@@ -418,7 +461,7 @@ class WebCanon:
                 text=extracted.text,
                 title=extracted.title,
                 links=extracted.links,
-                html=response.body,
+                html=html_body,
             ),
             provenance=Provenance(
                 source_hash=sha256_hex(response.body),
